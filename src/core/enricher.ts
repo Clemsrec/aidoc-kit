@@ -52,13 +52,26 @@ export function buildPrompt(
  * - Others: returns a safe static default.
  * Falls back to static defaults silently on any network error.
  */
+// ─── Provider docs URLs (used in error messages) ──────────────────────────
+
+const DOCS_URLS: Record<Provider, string> = {
+  openai:    'https://platform.openai.com/docs/models',
+  anthropic: 'https://docs.anthropic.com/models',
+  gemini:    'https://ai.google.dev/gemini-api/docs/models',
+  groq:      'https://console.groq.com/docs/models',
+  mistral:   'https://docs.mistral.ai/getting-started/models',
+  ollama:    'https://ollama.com/library  (run: ollama list)',
+}
+
 export async function resolveModel(
   provider: Provider,
   apiKey: string,
   userModel?: string,
 ): Promise<string> {
+  // 1. User-specified model always wins
   if (userModel) return userModel
 
+  // 2. Dynamic resolution via provider API (anthropic + gemini)
   try {
     if (provider === 'anthropic') {
       const res = await fetch('https://api.anthropic.com/v1/models', {
@@ -68,7 +81,10 @@ export async function resolveModel(
         const data = await res.json() as { data?: Array<{ id: string }> }
         const found = data.data?.find(m => m.id.includes('haiku'))?.id
           ?? data.data?.[0]?.id
-        if (found) return found
+        if (found) {
+          console.log(`🤖 Modèle résolu dynamiquement : ${found}`)
+          return found
+        }
       }
     }
 
@@ -82,22 +98,23 @@ export async function resolveModel(
           ?.find(m => m.name.includes('flash') && m.name.includes('generateContent'))
           ?.name.replace('models/', '')
           ?? data.models?.[0]?.name.replace('models/', '')
-        if (found) return found
+        if (found) {
+          console.log(`🤖 Modèle résolu dynamiquement : ${found}`)
+          return found
+        }
       }
     }
   } catch {
-    // Network failure — fall through to static defaults
+    // API unavailable — fall through to explicit error
   }
 
-  const defaults: Record<Provider, string> = {
-    openai:    'gpt-4o-mini',
-    anthropic: 'claude-haiku-4-5-20251001',
-    gemini:    'gemini-2.0-flash',
-    groq:      'llama-3.1-8b-instant',
-    mistral:   'mistral-small-latest',
-    ollama:    'llama3.2',
-  }
-  return defaults[provider]
+  // 3. No fallback — fail loud
+  throw new Error(
+    `\nAucun modèle configuré pour le provider "${provider}".\n` +
+    `\nAjoute \`model\` dans aidoc.config.ts ou passe --model en argument :\n` +
+    `\n  enrich: {\n    provider: '${provider}',\n    model: '...',   // consulter les modèles disponibles\n  }\n` +
+    `\nModèles disponibles : ${DOCS_URLS[provider]}\n`,
+  )
 }
 
 /**

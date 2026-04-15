@@ -148,10 +148,34 @@ function detectEnrichKeyEnv(stack: DetectedStack): string {
   return 'process.env.ANTHROPIC_API_KEY'
 }
 
+/** Starting model value written to aidoc.config.ts. The developer (or agent) must keep it up to date. */
+function detectDefaultModel(provider: string): string {
+  const suggestions: Record<string, string> = {
+    anthropic: 'claude-haiku-4-5-20251001',
+    openai:    'gpt-4o-mini',
+    gemini:    'gemini-2.0-flash',
+    groq:      'llama-3.1-8b-instant',
+    mistral:   'mistral-small-latest',
+    ollama:    'llama3.2',
+  }
+  return suggestions[provider] ?? 'YOUR_MODEL_HERE'
+}
+
 export function generateConfig(rootDir: string, stack: DetectedStack): string {
   const agents = buildAgentsMap(stack)
   const provider = detectEnrichProvider(stack)
   const keyEnv = detectEnrichKeyEnv(stack)
+  const defaultModel = detectDefaultModel(provider)
+
+  const docsUrls: Record<string, string> = {
+    anthropic: 'https://docs.anthropic.com/models',
+    openai:    'https://platform.openai.com/docs/models',
+    gemini:    'https://ai.google.dev/gemini-api/docs/models',
+    groq:      'https://console.groq.com/docs/models',
+    mistral:   'https://docs.mistral.ai/getting-started/models',
+    ollama:    'https://ollama.com/library',
+  }
+  const docsUrl = docsUrls[provider] ?? 'https://github.com/Clemsrec/aidoc-kit#choosing-your-llm'
 
   const agentsLines = Object.entries(agents)
     .map(([k, v]) => `    '${k}': '${v}',`)
@@ -161,7 +185,7 @@ export function generateConfig(rootDir: string, stack: DetectedStack): string {
     ? `  agents: {\n${agentsLines}\n  },\n`
     : ''
 
-  return `// aidoc.config.ts — généré par npx aidoc-kit init
+  return `// aidoc.config.ts \u2014 g\u00e9n\u00e9r\u00e9 par npx aidoc-kit init
 // Modifie ce fichier pour personnaliser le comportement d'aidoc-kit.
 // Documentation : https://github.com/Clemsrec/aidoc-kit
 
@@ -177,7 +201,17 @@ ${agentsBlock}  ignore: [
   enrich: {
     provider: '${provider}',
     key: ${keyEnv},
-    // model: non spécifié → résolu automatiquement via l'API du provider
+
+    // \u26a0\ufe0f  MOD\u00c8LE \u00c0 MAINTENIR
+    // aidoc-kit tente de r\u00e9soudre le mod\u00e8le automatiquement via l'API du provider.
+    // Si la r\u00e9solution \u00e9choue (r\u00e9seau, cl\u00e9 invalide, API indisponible),
+    // cette valeur est utilis\u00e9e. Mets-la \u00e0 jour quand ton provider d\u00e9pr\u00e9cie un mod\u00e8le.
+    //
+    // Mod\u00e8les disponibles : ${docsUrl}
+    //
+    // @ai-maintainer : v\u00e9rifier ce champ \u00e0 chaque mise \u00e0 jour majeure du provider.
+    // Lancer 'npx aidoc-kit enrich --dry' pour valider.
+    model: '${defaultModel}',
   },
 }
 `
