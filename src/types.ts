@@ -65,6 +65,19 @@ export interface AidocConfig {
    * @default 'npm run typecheck'
    */
   validate?: string
+  /**
+   * Default LLM provider config for `aidoc-kit enrich`.
+   * All fields can be overridden by CLI flags.
+   * Never hardcode API keys — use process.env.
+   * @example { provider: 'gemini', model: 'gemini-2.0-flash', key: process.env.GEMINI_API_KEY }
+   */
+  enrich?: {
+    provider?: 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'ollama'
+    model?: string
+    key?: string
+    /** Custom Ollama host. @default 'http://localhost:11434' */
+    host?: string
+  }
 }
 
 // ─── Knowledge base ────────────────────────────────────────────────────────

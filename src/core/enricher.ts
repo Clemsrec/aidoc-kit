@@ -1,0 +1,244 @@
+import { readFileSync } from 'node:fs'
+
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+export type Provider = 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'ollama'
+
+export interface EnrichOptions {
+  provider: Provider
+  model: string
+  apiKey?: string
+  /** Custom base URL for Ollama (default: http://localhost:11434) */
+  host?: string
+  dryRun: boolean
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────
+
+/**
+ * Build the LLM prompt for a given file.
+ * Prompt is in English to maximise quality across all models.
+ */
+export function buildPrompt(
+  filePath: string,
+  exportNames: string[],
+  importedBy: string[],
+  sourceLines: string[],
+): string {
+  const first50 = sourceLines.slice(0, 50).join('\n')
+  const exportsStr = exportNames.length > 0 ? exportNames.join(', ') : '(none detected)'
+  const importedByStr = importedBy.length > 0 ? importedBy.join(', ') : '(none detected)'
+
+  return [
+    'You are a code documentation expert.',
+    'Analyze this TypeScript/JavaScript file and write a SHORT description (2-3 lines max)',
+    'of what this file does, its role in the application, and what it exposes.',
+    'Reply ONLY with the description. No introduction, no conclusion, no markdown.',
+    '',
+    `File: ${filePath}`,
+    `Exports: ${exportsStr}`,
+    `Imported by: ${importedByStr}`,
+    'First 50 lines:',
+    first50,
+  ].join('\n')
+}
+
+/**
+ * Route the prompt to the correct LLM provider.
+ */
+export async function callLLM(prompt: string, options: EnrichOptions): Promise<string> {
+  const { provider, model, apiKey, host } = options
+
+  switch (provider) {
+    case 'openai':  return callOpenAI(prompt, model, requireKey(provider, apiKey))
+    case 'anthropic': return callAnthropic(prompt, model, requireKey(provider, apiKey))
+    case 'gemini':  return callGemini(prompt, model, requireKey(provider, apiKey))
+    case 'groq':    return callGroq(prompt, model, requireKey(provider, apiKey))
+    case 'mistral': return callMistral(prompt, model, requireKey(provider, apiKey))
+    case 'ollama':  return callOllama(prompt, model, host ?? 'http://localhost:11434')
+    default: throw new Error(`Unknown provider: ${provider as string}`)
+  }
+}
+
+// ─── Provider implementations ──────────────────────────────────────────────
+
+async function callOpenAI(prompt: string, model: string, apiKey: string): Promise<string> {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 200,
+    }),
+  }, 'OpenAI')
+
+  const json = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>
+    error?: { message: string }
+  }
+  if (json.error) throw new Error(`OpenAI error: ${json.error.message}`)
+  return json.choices?.[0]?.message?.content?.trim() ?? ''
+}
+
+async function callAnthropic(prompt: string, model: string, apiKey: string): Promise<string> {
+  const res = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  }, 'Anthropic')
+
+  const json = await res.json() as {
+    content?: Array<{ type: string; text?: string }>
+    error?: { message: string }
+  }
+  if (json.error) throw new Error(`Anthropic error: ${json.error.message}`)
+  const block = json.content?.find(b => b.type === 'text')
+  return block?.text?.trim() ?? ''
+}
+
+async function callGemini(prompt: string, model: string, apiKey: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+  const res = await fetchWithRetry(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 200 },
+    }),
+  }, 'Gemini')
+
+  const json = await res.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+    error?: { message: string }
+  }
+  if (json.error) throw new Error(`Gemini error: ${json.error.message}`)
+  return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+}
+
+async function callGroq(prompt: string, model: string, apiKey: string): Promise<string> {
+  // Groq uses the same API shape as OpenAI
+  const res = await fetchWithRetry('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 200,
+    }),
+  }, 'Groq')
+
+  const json = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>
+    error?: { message: string }
+  }
+  if (json.error) throw new Error(`Groq error: ${json.error.message}`)
+  return json.choices?.[0]?.message?.content?.trim() ?? ''
+}
+
+async function callMistral(prompt: string, model: string, apiKey: string): Promise<string> {
+  const res = await fetchWithRetry('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 200,
+    }),
+  }, 'Mistral')
+
+  const json = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>
+    error?: { message: string }
+  }
+  if (json.error) throw new Error(`Mistral error: ${json.error.message}`)
+  return json.choices?.[0]?.message?.content?.trim() ?? ''
+}
+
+async function callOllama(prompt: string, model: string, host: string): Promise<string> {
+  let res: Response
+  try {
+    res = await fetch(`${host}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt, stream: false }),
+    })
+  } catch {
+    throw new Error(`Ollama not running. Start with: ollama serve\n  (tried ${host})`)
+  }
+
+  if (!res.ok) {
+    throw new Error(`Ollama error ${res.status}: ${await res.text()}`)
+  }
+
+  const json = await res.json() as { response?: string; error?: string }
+  if (json.error) throw new Error(`Ollama error: ${json.error}`)
+  return json.response?.trim() ?? ''
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function requireKey(provider: string, apiKey: string | undefined): string {
+  if (!apiKey) {
+    throw new Error(
+      `Missing API key for ${provider}. Use --key YOUR_KEY or set it in aidoc.config.js (enrich.key).`,
+    )
+  }
+  return apiKey
+}
+
+/**
+ * Fetch with a single auto-retry on 429 (rate limit), after a 2s delay.
+ * Throws a descriptive error on network failures.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  providerName: string,
+): Promise<Response> {
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch {
+    throw new Error(`Cannot reach ${providerName} API. Check your connection.`)
+  }
+
+  if (res.status === 429) {
+    // Rate limit — wait 2s and retry once
+    await new Promise(r => setTimeout(r, 2000))
+    try {
+      res = await fetch(url, init)
+    } catch {
+      throw new Error(`Cannot reach ${providerName} API. Check your connection.`)
+    }
+  }
+
+  return res
+}
+
+// ─── Source preview helper ─────────────────────────────────────────────────
+
+export function readSourceLines(filePath: string): string[] {
+  try {
+    return readFileSync(filePath, 'utf-8').split('\n')
+  } catch {
+    return []
+  }
+}

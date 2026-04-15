@@ -6,6 +6,7 @@ import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
 import { generateAiDocBlock, applyRules } from './core/transformer'
 import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
 import { chunkFile, writeChunk } from './core/chunker'
+import { callLLM, buildPrompt, readSourceLines, type Provider } from './core/enricher'
 import { loadConfig, isIgnored } from './core/config'
 import { defaultRules } from './rules/index'
 
@@ -164,6 +165,116 @@ async function cmdChunk(): Promise<void> {
   }
 }
 
+// ─── enrich ──────────────────────────────────────────────────────────────
+
+async function cmdEnrich(): Promise<void> {
+  const projectRoot = resolve(getFlag('--path') ?? '.')
+  const dry = hasFlag('--dry')
+  const config = loadConfig(projectRoot)
+
+  // CLI flags take priority over aidoc.config values
+  const provider = (getFlag('--provider') ?? config.enrich?.provider ?? 'gemini') as Provider
+  const model = getFlag('--model') ?? config.enrich?.model ?? defaultModel(provider)
+  const apiKey = getFlag('--key') ?? config.enrich?.key
+  const host = getFlag('--host') ?? config.enrich?.host
+
+  console.log(`\naidoc-kit enrich → ${projectRoot}`)
+  console.log(`Provider : ${provider} / Model : ${model}${dry ? ' (dry-run)' : ''}\n`)
+
+  const allFiles = walkDir(projectRoot)
+  const reverseMap = buildReverseImportMap(allFiles)
+  const ignorePatterns = config.ignore ?? []
+
+  // Only enrich files without an existing @ai-context (non-default content)
+  const toEnrich = allFiles.filter(f => {
+    const rel = relative(projectRoot, f)
+    if (ignorePatterns.length > 0 && isIgnored(rel, ignorePatterns)) return false
+    try {
+      const src = readSourceLines(f).join('\n')
+      // Skip if already has a non-generated context
+      return src.includes('@ai-agent') && src.includes('[GÉNÉRÉ]')
+    } catch {
+      return false
+    }
+  })
+
+  if (toEnrich.length === 0) {
+    console.log('Aucun fichier avec un bloc @ai-context généré trouvé.')
+    console.log('Lance `npx aidoc-kit scan --write` d’abord.')
+    return
+  }
+
+  console.log(`${toEnrich.length} fichier(s) à enrichir :\n`)
+  toEnrich.forEach(f => console.log(`  - ${relative(projectRoot, f)}`))
+
+  if (dry) {
+    console.log('\n[dry-run] Aucune modification écrite.')
+    return
+  }
+
+  console.log()
+  let enriched = 0
+  let failed = 0
+
+  for (const filePath of toEnrich) {
+    const rel = relative(projectRoot, filePath)
+    const lines = readSourceLines(filePath)
+    const importedBy = (reverseMap.get(filePath) ?? []).map(f => relative(projectRoot, f))
+
+    // Extract export names from existing @ai-context line
+    const contextLine = lines.find(l => l.includes('[GÉNÉRÉ] Ce fichier exporte'))
+    const exportNames = contextLine
+      ? (contextLine.split(':')[1] ?? '').trim().split(',').map(s => s.trim()).filter(Boolean)
+      : []
+
+    const prompt = buildPrompt(rel, exportNames, importedBy, lines)
+
+    try {
+      const description = await callLLM(prompt, { provider, model, apiKey, host, dryRun: false })
+
+      if (!description) {
+        console.log(`  ⚠️  ${rel} — réponse vide, bloc original conservé`)
+        failed++
+        continue
+      }
+
+      // Replace [GÉNÉRÉ] line with LLM description
+      const source = lines.join('\n')
+      const updated = source.replace(
+        /\[GÉNÉRÉ\] Ce fichier exporte[^\n]*/,
+        description.replace(/\$/g, '$$$$'),
+      )
+
+      if (source !== updated) {
+        const { writeFileSync } = await import('node:fs')
+        writeFileSync(filePath, updated, 'utf-8')
+        console.log(`  ✓ ${rel}`)
+        enriched++
+      } else {
+        console.log(`  — ${rel} (aucun changement)`)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.log(`  ✖ ${rel} — ${message}`)
+      failed++
+    }
+  }
+
+  console.log(`\n✓ ${enriched} fichier(s) enrichi(s)${failed > 0 ? `, ${failed} échec(s)` : ''}`)
+}
+
+function defaultModel(provider: Provider): string {
+  const defaults: Record<Provider, string> = {
+    openai:    'gpt-4o-mini',
+    anthropic: 'claude-3-5-haiku-20241022',
+    gemini:    'gemini-2.0-flash',
+    groq:      'llama-3.1-8b-instant',
+    mistral:   'mistral-small-latest',
+    ollama:    'llama3.2',
+  }
+  return defaults[provider]
+}
+
 // ─── help ──────────────────────────────────────────────────────────────────
 
 function printHelp(): void {
@@ -171,14 +282,25 @@ function printHelp(): void {
 aidoc-kit — AI-native documentation toolkit
 
 Commandes :
-  scan   Scanner un projet et construire la knowledge base
-         --path <dir>   Dossier racine (défaut: .)
-         --write        Écrire les blocs @ai-* manquants (confirmation interactive)
-         --dry          Afficher les blocs générés sans modifier les fichiers
+  scan    Scanner un projet et construire la knowledge base
+          --path <dir>   Dossier racine (défaut: .)
+          --write        Écrire les blocs @ai-* manquants (confirmation interactive)
+          --dry          Afficher les blocs générés sans modifier les fichiers
 
-  run    Appliquer les règles de transformation
-         --path <dir>   Dossier racine (défaut: .)
-         --dry          Afficher les changements sans modifier les fichiers
+  chunk   Résumer les gros fichiers (≥150 lignes) dans .codemod/chunks/
+          --path <dir>   Dossier racine (défaut: .)
+
+  enrich  Enrichir les blocs @ai-context avec un LLM
+          --provider     openai | anthropic | gemini | groq | mistral | ollama
+          --model        Modèle à utiliser (défaut selon provider)
+          --key          Clé API (non nécessaire pour ollama)
+          --host         Hôte Ollama (défaut: http://localhost:11434)
+          --path <dir>   Dossier racine (défaut: .)
+          --dry          Lister les fichiers sans modifier
+
+  run     Appliquer les règles de transformation
+          --path <dir>   Dossier racine (défaut: .)
+          --dry          Afficher les changements sans modifier les fichiers
 
 Config :
   Créer un fichier aidoc.config.js (ou .json) à la racine du projet :
@@ -187,6 +309,7 @@ Config :
       agents: { '@/lib/permissions': 'permissions-expert', 'stripe': 'billing-expert' },
       ignore: ['src/generated/**', '**/*.test.ts'],
       validate: 'npm run typecheck',
+      enrich: { provider: 'gemini', model: 'gemini-2.0-flash', key: process.env.GEMINI_API_KEY },
     }
 
 Exemples :
@@ -196,6 +319,13 @@ Exemples :
   npx aidoc-kit run --dry
   npx aidoc-kit chunk
   npx aidoc-kit chunk --path ./src
+  npx aidoc-kit enrich --provider gemini --model gemini-2.0-flash --key YOUR_KEY
+  npx aidoc-kit enrich --provider openai --model gpt-4o-mini --key sk-...
+  npx aidoc-kit enrich --provider anthropic --model claude-3-5-haiku-20241022 --key sk-ant-...
+  npx aidoc-kit enrich --provider groq --model llama-3.1-8b-instant --key gsk_...
+  npx aidoc-kit enrich --provider mistral --model mistral-small-latest --key ...
+  npx aidoc-kit enrich --provider ollama --model llama3.2
+  npx aidoc-kit enrich --dry
 `)
 }
 
@@ -213,6 +343,12 @@ switch (command) {
     break
   case 'chunk':
     cmdChunk().catch((err: unknown) => {
+      console.error(err)
+      process.exit(1)
+    })
+    break
+  case 'enrich':
+    cmdEnrich().catch((err: unknown) => {
       console.error(err)
       process.exit(1)
     })

@@ -138,6 +138,46 @@ Or as JSON:
 }
 ```
 
+## AI-powered context enrichment
+
+Once `scan --write` has generated the base `@ai-*` blocks, run `enrich` to replace the generic `[GÉNÉRÉ]` descriptions with real LLM-written context:
+
+```bash
+npx aidoc-kit enrich --provider gemini --model gemini-2.0-flash --key YOUR_KEY
+npx aidoc-kit enrich --provider openai --model gpt-4o-mini --key sk-...
+npx aidoc-kit enrich --provider anthropic --model claude-3-5-haiku-20241022 --key sk-ant-...
+npx aidoc-kit enrich --provider groq --model llama-3.1-8b-instant --key gsk_...
+npx aidoc-kit enrich --provider mistral --model mistral-small-latest --key ...
+npx aidoc-kit enrich --provider ollama --model llama3.2   # no key needed — fully local
+```
+
+Use `--dry` to preview which files would be enriched without making any changes.
+
+You can also set the default provider in `aidoc.config.js` to avoid repeating flags:
+
+```js
+module.exports = {
+  enrich: {
+    provider: 'gemini',
+    model: 'gemini-2.0-flash',
+    key: process.env.GEMINI_API_KEY,   // never hardcode keys
+  },
+}
+```
+
+### Choosing your LLM for enrich
+
+| Provider | Recommended model | Cost | Speed | Best for |
+|----------|-------------------|------|-------|----------|
+| Ollama | llama3.2 | Free | Medium | Local dev, privacy, confidential code |
+| Groq | llama-3.1-8b-instant | Very low | Ultra fast | CI/CD, large projects |
+| Gemini | gemini-2.0-flash-lite | Very low | Fast | Daily use |
+| Anthropic | claude-3-5-haiku | Low | Fast | Best code quality |
+| Mistral | mistral-small-latest | Low | Fast | European data residency |
+| OpenAI | gpt-4o-mini | Low | Fast | General use |
+
+> **Privacy note:** Ollama runs entirely on your machine — no code ever leaves your network. This makes it the right choice for client projects or proprietary codebases.
+
 ## Large file chunking
 
 AI agents often truncate large files — reading only the first 50-100 lines of a 500-line file. `aidoc-kit chunk` solves this by pre-summarising every file over 150 lines into a structured Markdown file inside `.codemod/chunks/`.
@@ -192,17 +232,25 @@ Tell your AI agent: *"Read `.codemod/chunks/` before modifying any large file."*
 aidoc-kit — AI-native documentation toolkit
 
 Commands:
-  scan   Scan a project and build the knowledge base
-         --path <dir>   Project root (default: .)
-         --write        Write missing @ai-* blocks (interactive confirmation)
-         --dry          Preview generated blocks without writing anything
+  scan    Scan a project and build the knowledge base
+          --path <dir>   Project root (default: .)
+          --write        Write missing @ai-* blocks (interactive confirmation)
+          --dry          Preview generated blocks without writing anything
 
-  chunk  Summarise large files (≥150 lines) into .codemod/chunks/*.md
-         --path <dir>   Project root (default: .)
+  chunk   Summarise large files (≥150 lines) into .codemod/chunks/*.md
+          --path <dir>   Project root (default: .)
 
-  run    Apply transformation rules
-         --path <dir>   Project root (default: .)
-         --dry          Preview changes without writing
+  enrich  Enrich @ai-context blocks with real LLM-generated descriptions
+          --provider     openai | anthropic | gemini | groq | mistral | ollama
+          --model        Model to use (defaults per provider)
+          --key          API key (not needed for ollama)
+          --host         Ollama host (default: http://localhost:11434)
+          --path <dir>   Project root (default: .)
+          --dry          List files without modifying
+
+  run     Apply transformation rules
+          --path <dir>   Project root (default: .)
+          --dry          Preview changes without writing
 ```
 
 ## Reverse dependency graph
