@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { writeFileSync } from 'node:fs'
+import { writeFileSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { resolve, relative, join } from 'node:path'
 import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
@@ -16,6 +16,14 @@ import { defaultRules } from './rules/index'
 const args = process.argv.slice(2)
 const command = args[0]
 
+// ─── Early exits ──────────────────────────────────────────────────────────────
+
+if (command === '--version' || command === '-v') {
+  const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')) as { version: string }
+  console.log(pkg.version)
+  process.exit(0)
+}
+
 function getFlag(flag: string): string | undefined {
   const idx = args.indexOf(flag)
   return idx !== -1 ? args[idx + 1] : undefined
@@ -27,8 +35,8 @@ function hasFlag(flag: string): boolean {
 // ─── Confirmation prompt ───────────────────────────────────────────────────
 
 function confirm(message: string): Promise<boolean> {
-  // Non-interactive (piped input, CI) → proceed without prompt
-  if (!process.stdin.isTTY) return Promise.resolve(true)
+  // --yes / -y flag or non-interactive (piped, CI) → proceed without prompt
+  if (hasFlag('--yes') || hasFlag('-y') || !process.stdin.isTTY) return Promise.resolve(true)
   return new Promise(resolve => {
     const rl = createInterface({ input: process.stdin, output: process.stdout })
     rl.question(`${message} (y/n) `, answer => {
@@ -41,6 +49,18 @@ function confirm(message: string): Promise<boolean> {
 // ─── scan ──────────────────────────────────────────────────────────────────
 
 async function cmdScan(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit scan [options]
+
+  --path <dir>   Dossier racine (défaut: .)
+  --write        Écrire les blocs @ai-* manquants (confirmation interactive)
+  --yes, -y      Passer la confirmation (CI, pipe, non-interactif)
+  --dry          Afficher les blocs générés sans modifier les fichiers
+  -h, --help     Afficher cette aide
+`)
+    return
+  }
   const projectRoot = resolve(getFlag('--path') ?? '.')
   const write = hasFlag('--write')
   const dry = hasFlag('--dry')
@@ -113,6 +133,16 @@ async function cmdScan(): Promise<void> {
 // ─── run ───────────────────────────────────────────────────────────────────
 
 function cmdRun(): void {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit run [options]
+
+  --path <dir>   Dossier racine (défaut: .)
+  --dry          Afficher les changements sans modifier les fichiers
+  -h, --help     Afficher cette aide
+`)
+    return
+  }
   const projectRoot = resolve(getFlag('--path') ?? '.')
   const dry = hasFlag('--dry')
 
@@ -141,6 +171,15 @@ function cmdRun(): void {
 // ─── chunk ────────────────────────────────────────────────────────────────
 
 async function cmdChunk(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit chunk [options]
+
+  --path <dir>   Dossier racine (défaut: .)
+  -h, --help     Afficher cette aide
+`)
+    return
+  }
   const projectRoot = resolve(getFlag('--path') ?? '.')
 
   console.log(`\naidoc-kit chunk → ${projectRoot}\n`)
@@ -171,6 +210,20 @@ async function cmdChunk(): Promise<void> {
 // ─── enrich ──────────────────────────────────────────────────────────────
 
 async function cmdEnrich(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit enrich [options]
+
+  --provider     openai | anthropic | gemini | groq | mistral | ollama
+  --model        Modèle à utiliser (auto-résolu si absent)
+  --key          Clé API (non nécessaire pour ollama)
+  --host         Hôte Ollama (défaut: http://localhost:11434)
+  --path <dir>   Dossier racine (défaut: .)
+  --dry          Lister les fichiers sans modifier
+  -h, --help     Afficher cette aide
+`)
+    return
+  }
   const projectRoot = resolve(getFlag('--path') ?? '.')
   const dry = hasFlag('--dry')
   const config = loadConfig(projectRoot)
@@ -282,6 +335,7 @@ Commandes :
   scan    Scanner un projet et construire la knowledge base
           --path <dir>   Dossier racine (défaut: .)
           --write        Écrire les blocs @ai-* manquants (confirmation interactive)
+          --yes, -y      Passer la confirmation (CI, pipe, non-interactif)
           --dry          Afficher les blocs générés sans modifier les fichiers
 
   chunk   Résumer les gros fichiers (≥150 lignes) dans .codemod/chunks/
@@ -332,7 +386,16 @@ Exemples :
 
 switch (command) {
   case 'init':
-    runInit(resolve(getFlag('--path') ?? '.'))
+    if (hasFlag('--help') || hasFlag('-h')) {
+      console.log(`
+Usage: aidoc-kit init [options]
+
+  --path <dir>   Dossier racine (défaut: .)
+  -h, --help     Afficher cette aide
+`)
+    } else {
+      runInit(resolve(getFlag('--path') ?? '.'))
+    }
     break
   case 'scan':
     cmdScan().catch((err: unknown) => {

@@ -91,7 +91,7 @@ export async function resolveModel(
 
   const defaults: Record<Provider, string> = {
     openai:    'gpt-4o-mini',
-    anthropic: 'claude-haiku-4-5',
+    anthropic: 'claude-haiku-4-5-20251001',
     gemini:    'gemini-2.0-flash',
     groq:      'llama-3.1-8b-instant',
     mistral:   'mistral-small-latest',
