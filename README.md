@@ -7,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
+> **v1.0.0 stable** — Battle-tested on Next.js 16 projects with 135+ files.
+
 ## The problem
 
 When AI agents (GitHub Copilot, Cursor, Claude) work on large Next.js projects with 200–400 files, they lose context between sessions. They re-discover architecture, miss existing conventions, and break established patterns.

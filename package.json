@@ -1,7 +1,7 @@
 {
   "name": "aidoc-kit",
   "version": "0.3.1",
-  "description": "AI-native documentation scanner for JS/TS projects",
+  "description": "AI-native documentation scanner for JS/TS projects — gives AI agents persistent memory across sessions",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -22,14 +22,18 @@
   "keywords": [
     "ai",
     "documentation",
-    "codemod",
     "typescript",
-    "ast",
-    "agents",
+    "javascript",
+    "nextjs",
     "copilot",
+    "cursor",
+    "agents",
+    "codemod",
+    "ast",
     "llm",
-    "jsdoc",
-    "knowledge-base"
+    "context",
+    "memory",
+    "jsdoc"
   ],
   "license": "MIT",
   "repository": {
