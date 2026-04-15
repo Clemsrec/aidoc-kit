@@ -61,12 +61,14 @@ async function cmdScan(): Promise<void> {
   console.log(`✗ ${filteredWithoutDocs.length} fichiers sans docs${ignorePatterns.length > 0 ? ' (après filtres ignore)' : ''}\n`)
 
   if (filteredWithoutDocs.length > 0 && (write || dry)) {
-    // Build reverse import map once for all files
+    // Build reverse import map over ALL project files (docs + all undocumented, regardless of
+    // ignore patterns) so that @ai-cascade is complete even when some importers are filtered.
     const allAbsFiles = [
       ...result.docs.map(d => resolve(projectRoot, d.file)),
-      ...filteredWithoutDocs.map(f => resolve(projectRoot, f)),
+      ...result.filesWithoutDocs.map(f => resolve(projectRoot, f)),
     ]
-    const reverseMap = buildReverseImportMap(allAbsFiles)
+    // Pass projectRoot so that @/ alias imports (Next.js, Vite) are resolved correctly
+    const reverseMap = buildReverseImportMap(allAbsFiles, projectRoot)
 
     if (dry) {
       console.log('Aperçu des blocs générés :')
@@ -143,7 +145,7 @@ async function cmdChunk(): Promise<void> {
   console.log(`\naidoc-kit chunk → ${projectRoot}\n`)
 
   const allFiles = walkDir(projectRoot)
-  const reverseMap = buildReverseImportMap(allFiles)
+  const reverseMap = buildReverseImportMap(allFiles, projectRoot)
   const codemodDir = join(projectRoot, '.codemod')
 
   let chunked = 0
@@ -182,7 +184,7 @@ async function cmdEnrich(): Promise<void> {
   console.log(`Provider : ${provider} / Model : ${model}${dry ? ' (dry-run)' : ''}\n`)
 
   const allFiles = walkDir(projectRoot)
-  const reverseMap = buildReverseImportMap(allFiles)
+  const reverseMap = buildReverseImportMap(allFiles, projectRoot)
   const ignorePatterns = config.ignore ?? []
 
   // Only enrich files without an existing @ai-context (non-default content)

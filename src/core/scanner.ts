@@ -12,10 +12,11 @@ const IGNORED_DIRS = new Set([
 
 /**
  * Build a map from each file (absolute path) → the set of files that import it.
- * Only resolves relative imports (e.g. `./foo`, `../bar`); package imports are ignored.
+ * Resolves relative imports (./foo, ../bar) and @/ alias imports common in Next.js projects.
+ * Pass `rootDir` to enable @/ alias resolution (mapped to `<rootDir>/src/`).
  */
-export function buildReverseImportMap(files: string[]): Map<string, string[]> {
-  // forward: absPath → [absPath of each relative import it resolves to]
+export function buildReverseImportMap(files: string[], rootDir?: string): Map<string, string[]> {
+  // forward: absPath → [absPath of each resolved import]
   const forward = new Map<string, string[]>()
 
   for (const file of files) {
@@ -30,8 +31,19 @@ export function buildReverseImportMap(files: string[]): Map<string, string[]> {
     ts.forEachChild(sf, node => {
       if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
         const spec = node.moduleSpecifier.text
-        if (!spec.startsWith('.')) return // skip package imports
-        const resolved = resolveImport(dirname(file), spec)
+        let resolved: string | null = null
+
+        if (spec.startsWith('.')) {
+          // Relative import: ./foo or ../bar
+          resolved = resolveImport(dirname(file), spec)
+        } else if (rootDir && spec.startsWith('@/')) {
+          // @/ alias → <rootDir>/src/<rest>  (standard Next.js / Vite convention)
+          const rest = spec.slice(2) // strip '@/'
+          resolved =
+            resolveImport(join(rootDir, 'src'), rest) ??
+            resolveImport(rootDir, rest)
+        }
+
         if (resolved) deps.push(resolved)
       }
     })
