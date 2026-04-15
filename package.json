@@ -8,7 +8,7 @@
     "aidoc-kit": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node --eval \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/**/*.test.js 2>/dev/null || echo 'No tests yet — build passed'",
