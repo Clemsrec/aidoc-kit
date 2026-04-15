@@ -3,6 +3,7 @@
 > AI-native documentation scanner for JS/TS projects
 
 [![npm version](https://badge.fury.io/js/aidoc-kit.svg)](https://www.npmjs.com/package/aidoc-kit)
+[![CI](https://github.com/Clemsrec/aidoc-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Clemsrec/aidoc-kit/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
@@ -84,6 +85,7 @@ That's all a new user needs. `init` reads `package.json`, detects frameworks, au
 | `@ai-agents-related` | Other agents to consult when modifying |
 | `@ai-runtime` | `CLIENT UNIQUEMENT` / `SERVER UNIQUEMENT` / `UNIVERSEL` |
 | `@ai-context` | What this file does and exposes |
+| `@ai-when-reading` | How to consume this file correctly |
 | `@ai-when-modifying` | Rules to follow when editing |
 | `@ai-always` | Invariants that must always be respected |
 | `@ai-never` | Absolute prohibitions |
@@ -113,11 +115,11 @@ The responsible agent is inferred from imports and file path, in priority order:
 
 ## Configuration
 
-Create `aidoc.config.js` at your project root:
+Run `npx aidoc-kit init` to generate a pre-filled `aidoc.config.ts` automatically. Or create it manually:
 
-```js
-// aidoc.config.js
-module.exports = {
+```ts
+// aidoc.config.ts
+export default {
   agents: {
     'firebase-admin': 'firebase-admin-expert',
     'stripe': 'billing-expert',
@@ -128,15 +130,7 @@ module.exports = {
 }
 ```
 
-Or as JSON:
-
-```json
-{
-  "agents": { "stripe": "billing-expert" },
-  "ignore": ["src/generated/"],
-  "validate": "npm run typecheck"
-}
-```
+Also supported: `aidoc.config.js` (CommonJS `module.exports`) and `aidoc.config.json`.
 
 ## AI-powered context enrichment
 
