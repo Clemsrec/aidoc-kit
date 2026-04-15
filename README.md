@@ -20,14 +20,22 @@ When AI agents (GitHub Copilot, Cursor, Claude) work on large Next.js projects w
 ## Installation
 
 ```bash
+# Install once as a dev dependency (recommended — avoids interactive prompts every run):
 npm install -D aidoc-kit
-# or run directly without installing:
-npx aidoc-kit scan
+```
+
+Or run directly with `npx --yes` to skip the download confirmation:
+
+```bash
+npx --yes aidoc-kit init
 ```
 
 ## Quick start
 
 ```bash
+# Install once (skip the npm download prompt on every run):
+npm install -D aidoc-kit
+
 # 1. Detect your stack and generate aidoc.config.ts automatically:
 npx aidoc-kit init
 

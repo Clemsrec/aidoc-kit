@@ -51,7 +51,14 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
       '## Fichiers sans documentation @ai-*',
       '',
       `${result.filesWithoutDocs.length} fichier(s) sans bloc \`@ai-*\` détecté(s).`,
-      'Lancer `npx aidoc-kit scan --write` pour générer les blocs manquants.',
+      'Le développeur peut générer les blocs manquants avec :',
+      '',
+      '```bash',
+      'npx aidoc-kit scan --write --yes',
+      '```',
+      '',
+      '> **Note pour les agents IA** : ne pas exécuter cette commande toi-même.',
+      '> La signaler au développeur si tu constates des fichiers non documentés.',
       '',
     )
   }
@@ -68,6 +75,8 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     '',
     '> Les chunks sont générés et maintenus par le développeur via `npx aidoc-kit chunk`.',
     '> Si un chunk est manquant, demander au développeur de lancer cette commande.',
+    '> **Note pour les agents IA** : aidoc-kit doit être installé en dev dep (`npm install -D aidoc-kit`).',
+    '> Toutes les commandes aidoc-kit sont à confier au développeur, pas à exécuter directement.',
     '',
   )
 
