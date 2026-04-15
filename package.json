@@ -1,0 +1,38 @@
+{
+  "name": "aidoc-kit",
+  "version": "0.1.0",
+  "description": "AI-native documentation toolkit — scan, generate and index @ai-* JSDoc blocks across TypeScript projects",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "aidoc-kit": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "codemod",
+    "typescript",
+    "ast",
+    "ai",
+    "documentation",
+    "agents",
+    "jsdoc"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
