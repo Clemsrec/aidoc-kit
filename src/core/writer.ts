@@ -56,6 +56,19 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     )
   }
 
+  lines.push(
+    '## Fichiers volumineux — lire le chunk avant de modifier',
+    '',
+    'Les fichiers de plus de 150 lignes ont un résumé structuré dans `.codemod/chunks/`.',
+    'Avant de modifier un fichier volumineux, lire son chunk correspondant.',
+    '',
+    'Exemple : avant de modifier `src/contexts/auth-context.tsx`',
+    '→ Lire `.codemod/chunks/src/contexts/auth-context.tsx.md`',
+    '',
+    'Générer ou régénérer les chunks : `npx aidoc-kit chunk`',
+    '',
+  )
+
   writeFileSync(join(projectRoot, 'AGENTS.md'), lines.join('\n'), 'utf-8')
 }
 

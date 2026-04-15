@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { resolve, relative } from 'node:path'
 import { writeFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { scanProject, buildReverseImportMap } from './core/scanner'
+import { resolve, relative, join } from 'node:path'
+import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
 import { generateAiDocBlock, applyRules } from './core/transformer'
 import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
+import { chunkFile, writeChunk } from './core/chunker'
 import { loadConfig, isIgnored } from './core/config'
 import { defaultRules } from './rules/index'
 
@@ -133,6 +134,36 @@ function cmdRun(): void {
   }
 }
 
+// ─── chunk ────────────────────────────────────────────────────────────────
+
+async function cmdChunk(): Promise<void> {
+  const projectRoot = resolve(getFlag('--path') ?? '.')
+
+  console.log(`\naidoc-kit chunk → ${projectRoot}\n`)
+
+  const allFiles = walkDir(projectRoot)
+  const reverseMap = buildReverseImportMap(allFiles)
+  const codemodDir = join(projectRoot, '.codemod')
+
+  let chunked = 0
+  for (const filePath of allFiles) {
+    const importedBy = reverseMap.get(filePath) ?? []
+    const chunk = chunkFile(filePath, importedBy, projectRoot)
+    if (chunk) {
+      writeChunk(chunk, codemodDir)
+      console.log(`  📦 ${chunk.filePath} (${chunk.totalLines} lignes)`)
+      chunked++
+    }
+  }
+
+  if (chunked === 0) {
+    console.log(`Aucun fichier ne dépasse le seuil (150 lignes). Chunking non nécessaire.`)
+  } else {
+    console.log(`\n✓ ${chunked} fichier(s) chunkés → .codemod/chunks/`)
+    console.log('💡 Dis à ton agent : "Lis .codemod/chunks/ avant de modifier un gros fichier"')
+  }
+}
+
 // ─── help ──────────────────────────────────────────────────────────────────
 
 function printHelp(): void {
@@ -163,6 +194,8 @@ Exemples :
   npx aidoc-kit scan --path ./src --dry
   npx aidoc-kit scan --write
   npx aidoc-kit run --dry
+  npx aidoc-kit chunk
+  npx aidoc-kit chunk --path ./src
 `)
 }
 
@@ -177,6 +210,12 @@ switch (command) {
     break
   case 'run':
     cmdRun()
+    break
+  case 'chunk':
+    cmdChunk().catch((err: unknown) => {
+      console.error(err)
+      process.exit(1)
+    })
     break
   default:
     printHelp()

@@ -129,7 +129,7 @@ export function extractAiDocs(filePath: string, rootDir = ''): AiDocBlock | null
 
 // ─── File walker ───────────────────────────────────────────────────────────
 
-function walkDir(dir: string): string[] {
+export function walkDir(dir: string): string[] {
   const results: string[] = []
   let entries: string[]
 

@@ -138,6 +138,54 @@ Or as JSON:
 }
 ```
 
+## Large file chunking
+
+AI agents often truncate large files — reading only the first 50-100 lines of a 500-line file. `aidoc-kit chunk` solves this by pre-summarising every file over 150 lines into a structured Markdown file inside `.codemod/chunks/`.
+
+```bash
+npx aidoc-kit chunk
+# 📦 src/contexts/auth-context.tsx (320 lignes)
+# 📦 src/lib/firebase.ts (210 lignes)
+#
+# ✓ 2 fichier(s) chunkés → .codemod/chunks/
+```
+
+Each generated chunk looks like:
+
+```markdown
+# Chunk — src/contexts/auth-context.tsx
+> 320 lignes — généré par aidoc-kit chunk
+
+## Exports publics
+- `AuthProvider` (function) — ligne 45
+- `AuthContextType` (interface) — ligne 12
+- `useAuthContext` (const) — ligne 89
+
+## Imports critiques
+- firebase/auth (getAuth, onAuthStateChanged, signInWithEmailAndPassword)
+- react (createContext, useContext, useState, useEffect)
+- @/lib/types (User, UserRole)
+
+## Structure du fichier
+- L. 1-50 : imports
+- L. 51-100 : types et interfaces
+- L. 101-150 : hooks React
+- L. 151-200 : fonctions asynchrones
+- L. 201-320 : rendu JSX
+
+## Fonctions et méthodes
+| Nom | Lignes | Paramètres | Retour |
+|-----|--------|------------|--------|
+| AuthProvider | 45-180 | children: ReactNode | JSX.Element |
+| useAuthContext | 181-200 | — | AuthContextType |
+
+## Importé par
+- `src/app/layout.tsx`
+- `src/hooks/use-auth.ts`
+```
+
+Tell your AI agent: *"Read `.codemod/chunks/` before modifying any large file."*
+
 ## CLI reference
 
 ```
@@ -148,6 +196,9 @@ Commands:
          --path <dir>   Project root (default: .)
          --write        Write missing @ai-* blocks (interactive confirmation)
          --dry          Preview generated blocks without writing anything
+
+  chunk  Summarise large files (≥150 lines) into .codemod/chunks/*.md
+         --path <dir>   Project root (default: .)
 
   run    Apply transformation rules
          --path <dir>   Project root (default: .)

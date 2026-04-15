@@ -1,9 +1,7 @@
 node_modules/
 dist/
 .codemod/
-.env
-.env.local
-.env*.local
 *.log
-npm-debug.log*
 .DS_Store
+.env*
+
