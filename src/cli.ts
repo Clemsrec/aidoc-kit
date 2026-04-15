@@ -7,6 +7,7 @@ import { generateAiDocBlock, applyRules } from './core/transformer'
 import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
 import { chunkFile, writeChunk } from './core/chunker'
 import { callLLM, resolveModel, buildPrompt, readSourceLines, type Provider } from './core/enricher'
+import { runInit } from './core/init'
 import { loadConfig, isIgnored } from './core/config'
 import { defaultRules } from './rules/index'
 
@@ -275,6 +276,9 @@ function printHelp(): void {
 aidoc-kit — AI-native documentation toolkit
 
 Commandes :
+  init    Détecter la stack du projet et générer aidoc.config.ts
+          --path <dir>   Dossier racine (défaut: .)
+
   scan    Scanner un projet et construire la knowledge base
           --path <dir>   Dossier racine (défaut: .)
           --write        Écrire les blocs @ai-* manquants (confirmation interactive)
@@ -296,7 +300,8 @@ Commandes :
           --dry          Afficher les changements sans modifier les fichiers
 
 Config :
-  Créer un fichier aidoc.config.js (ou .json) à la racine du projet :
+  Lance "npx aidoc-kit init" pour générer un aidoc.config.ts adapté à ton projet.
+  Ou crée-le manuellement :
 
     module.exports = {
       agents: { '@/lib/permissions': 'permissions-expert', 'stripe': 'billing-expert' },
@@ -306,6 +311,7 @@ Config :
     }
 
 Exemples :
+  npx aidoc-kit init
   npx aidoc-kit scan
   npx aidoc-kit scan --path ./src --dry
   npx aidoc-kit scan --write
@@ -325,6 +331,9 @@ Exemples :
 // ─── Dispatch ─────────────────────────────────────────────────────────────
 
 switch (command) {
+  case 'init':
+    runInit(resolve(getFlag('--path') ?? '.'))
+    break
   case 'scan':
     cmdScan().catch((err: unknown) => {
       console.error(err)

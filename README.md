@@ -27,23 +27,23 @@ npx aidoc-kit scan
 ## Quick start
 
 ```bash
-# In any JS/TS project root:
-npx aidoc-kit scan
+# 1. Detect your stack and generate aidoc.config.ts automatically:
+npx aidoc-kit init
 
-# Output:
-# ✓ 47 fichiers scannés
-# ✓ 12 fichiers avec blocs @ai-*
-# ✗ 35 fichiers sans docs
-#
-# ✓ .codemod/ai-knowledge-base.json mis à jour
-# ✓ AGENTS.md mis à jour
-
-# Preview generated blocks without writing anything:
+# 2. Preview generated @ai-* blocks without writing anything:
 npx aidoc-kit scan --dry
 
-# Write missing blocks to files (asks confirmation):
+# 3. Write blocks to all files (asks confirmation):
 npx aidoc-kit scan --write
+
+# 4. Summarise large files for agents:
+npx aidoc-kit chunk
+
+# 5. Enrich @ai-context with an LLM (uses the provider detected at init):
+npx aidoc-kit enrich --dry
 ```
+
+That's all a new user needs. `init` reads `package.json`, detects frameworks, auth libraries, databases, AI SDKs and generates a ready-to-use `aidoc.config.ts`.
 
 ## What gets generated
 
