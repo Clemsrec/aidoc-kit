@@ -50,14 +50,15 @@ export function buildReverseImportMap(files: string[], rootDir?: string): Map<st
     forward.set(file, deps)
   }
 
-  // reverse: absPath → [absPath of files that import it]
+  // reverse: absPath → [absPath of files that import it] (deduplicated)
   const reverse = new Map<string, string[]>()
   for (const file of files) reverse.set(file, [])
 
   for (const [importer, deps] of forward) {
     for (const dep of deps) {
       if (!reverse.has(dep)) reverse.set(dep, [])
-      reverse.get(dep)!.push(importer)
+      const existing = reverse.get(dep)!
+      if (!existing.includes(importer)) existing.push(importer)
     }
   }
 

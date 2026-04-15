@@ -27,7 +27,7 @@ export function generateAiDocBlock(
 
   const exportList = exports.length > 0 ? exports.join(', ') : basename(filePath)
   const importedIn = cascadeDeps.length > 0
-    ? `Importé dans : ${cascadeDeps.slice(0, 3).join(', ')}`
+    ? `Importé dans : ${cascadeDeps.join(', ')}`
     : ''
   const cascadeLines = cascadeDeps.length > 0
     ? cascadeDeps.map(f => ` * → ${f}`).join('\n')
