@@ -42,8 +42,9 @@ export function generateAiDocBlock(
  * ${importedIn}
  *
  * @ai-when-modifying
- * 1. Vérifier les fichiers en cascade ci-dessous
- * 2. Lancer @ai-validate après toute modification
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
 ${cascadeLines}

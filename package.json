@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "aidoc-kit": "./dist/cli.js"
+    "aidoc-kit": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Clemsrec/aidoc-kit"
+    "url": "git+https://github.com/Clemsrec/aidoc-kit.git"
   },
   "homepage": "https://github.com/Clemsrec/aidoc-kit#readme",
   "bugs": {
