@@ -202,16 +202,14 @@ ${agentsBlock}  ignore: [
     provider: '${provider}',
     key: ${keyEnv},
 
-    // \u26a0\ufe0f  MOD\u00c8LE \u00c0 MAINTENIR
-    // aidoc-kit tente de r\u00e9soudre le mod\u00e8le automatiquement via l'API du provider.
-    // Si la r\u00e9solution \u00e9choue (r\u00e9seau, cl\u00e9 invalide, API indisponible),
-    // cette valeur est utilis\u00e9e. Mets-la \u00e0 jour quand ton provider d\u00e9pr\u00e9cie un mod\u00e8le.
+    // aidoc-kit résout le modèle automatiquement via l'API du provider.
+    // Décommente et renseigne "model" uniquement si la résolution échoue
+    // (réseau indisponible, clé invalide, API /models non supportée).
     //
-    // Mod\u00e8les disponibles : ${docsUrl}
+    // Modèles disponibles : ${docsUrl}
     //
-    // @ai-maintainer : v\u00e9rifier ce champ \u00e0 chaque mise \u00e0 jour majeure du provider.
-    // Lancer 'npx aidoc-kit enrich --dry' pour valider.
-    model: '${defaultModel}',
+    // @ai-maintainer : si enrich échoue avec "Modèle non résolu", renseigner ce champ.
+    // model: '${defaultModel}',
   },
 }
 `
