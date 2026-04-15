@@ -8,6 +8,7 @@ import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
 import { chunkFile, writeChunk } from './core/chunker'
 import { callLLM, resolveModel, buildPrompt, readSourceLines, type Provider } from './core/enricher'
 import { runInit } from './core/init'
+import { fixArrows } from './core/fixer'
 import { loadConfig, isIgnored } from './core/config'
 import { defaultRules } from './rules/index'
 
@@ -353,6 +354,9 @@ Commandes :
           --path <dir>   Dossier racine (défaut: .)
           --dry          Afficher les changements sans modifier les fichiers
 
+  fix     Corriger les blocs @ai-* générés par d'anciennes versions
+    arrows  Remplacer le caractère → (U+2192) par => (Turbopack compat)
+
 Config :
   Lance "npx aidoc-kit init" pour générer un aidoc.config.ts adapté à ton projet.
   Ou crée-le manuellement :
@@ -379,6 +383,7 @@ Exemples :
   npx aidoc-kit enrich --provider mistral --model mistral-small-latest --key ...
   npx aidoc-kit enrich --provider ollama --model llama3.2
   npx aidoc-kit enrich --dry
+  npx aidoc-kit fix arrows
 `)
 }
 
@@ -418,6 +423,16 @@ Usage: aidoc-kit init [options]
       process.exit(1)
     })
     break
+  case 'fix': {
+    const subArgs = args.slice(1)
+    if (subArgs[0] === 'arrows' || subArgs.includes('--arrows')) {
+      const projectRoot = resolve(getFlag('--path') ?? '.')
+      fixArrows(projectRoot)
+    } else {
+      console.log(`Sous-commande fix inconnue. Commandes disponibles : arrows`)
+    }
+    break
+  }
   default:
     printHelp()
     break
