@@ -6,7 +6,7 @@ import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
 import { generateAiDocBlock, applyRules } from './core/transformer'
 import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
 import { chunkFile, writeChunk } from './core/chunker'
-import { callLLM, buildPrompt, readSourceLines, type Provider } from './core/enricher'
+import { callLLM, resolveModel, buildPrompt, readSourceLines, type Provider } from './core/enricher'
 import { loadConfig, isIgnored } from './core/config'
 import { defaultRules } from './rules/index'
 
@@ -176,12 +176,15 @@ async function cmdEnrich(): Promise<void> {
 
   // CLI flags take priority over aidoc.config values
   const provider = (getFlag('--provider') ?? config.enrich?.provider ?? 'gemini') as Provider
-  const model = getFlag('--model') ?? config.enrich?.model ?? defaultModel(provider)
   const apiKey = getFlag('--key') ?? config.enrich?.key
   const host = getFlag('--host') ?? config.enrich?.host
+  const userModel = getFlag('--model') ?? config.enrich?.model
+
+  // Resolve model dynamically (queries provider API when none specified)
+  const model = await resolveModel(provider, apiKey ?? '', userModel)
 
   console.log(`\naidoc-kit enrich → ${projectRoot}`)
-  console.log(`Provider : ${provider} / Model : ${model}${dry ? ' (dry-run)' : ''}\n`)
+  console.log(`Provider : ${provider} / Modèle : ${model}${dry ? ' (dry-run)' : ''}\n`)
 
   const allFiles = walkDir(projectRoot)
   const reverseMap = buildReverseImportMap(allFiles, projectRoot)
@@ -265,18 +268,6 @@ async function cmdEnrich(): Promise<void> {
   console.log(`\n✓ ${enriched} fichier(s) enrichi(s)${failed > 0 ? `, ${failed} échec(s)` : ''}`)
 }
 
-function defaultModel(provider: Provider): string {
-  const defaults: Record<Provider, string> = {
-    openai:    'gpt-4o-mini',
-    anthropic: 'claude-3-5-haiku-20241022',
-    gemini:    'gemini-2.0-flash',
-    groq:      'llama-3.1-8b-instant',
-    mistral:   'mistral-small-latest',
-    ollama:    'llama3.2',
-  }
-  return defaults[provider]
-}
-
 // ─── help ──────────────────────────────────────────────────────────────────
 
 function printHelp(): void {
@@ -294,7 +285,7 @@ Commandes :
 
   enrich  Enrichir les blocs @ai-context avec un LLM
           --provider     openai | anthropic | gemini | groq | mistral | ollama
-          --model        Modèle à utiliser (défaut selon provider)
+          --model        Modèle à utiliser (auto-résolu si absent)
           --key          Clé API (non nécessaire pour ollama)
           --host         Hôte Ollama (défaut: http://localhost:11434)
           --path <dir>   Dossier racine (défaut: .)

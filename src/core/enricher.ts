@@ -6,7 +6,8 @@ export type Provider = 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 
 
 export interface EnrichOptions {
   provider: Provider
-  model: string
+  /** Model name. If omitted, resolved dynamically via resolveModel(). */
+  model?: string
   apiKey?: string
   /** Custom base URL for Ollama (default: http://localhost:11434) */
   host?: string
@@ -44,10 +45,67 @@ export function buildPrompt(
 }
 
 /**
+ * Resolve the best available model for a provider.
+ * - User-specified model always wins.
+ * - Anthropic: queries /v1/models, picks the latest haiku variant.
+ * - Gemini: queries /v1beta/models, picks the latest flash variant.
+ * - Others: returns a safe static default.
+ * Falls back to static defaults silently on any network error.
+ */
+export async function resolveModel(
+  provider: Provider,
+  apiKey: string,
+  userModel?: string,
+): Promise<string> {
+  if (userModel) return userModel
+
+  try {
+    if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/models', {
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      })
+      if (res.ok) {
+        const data = await res.json() as { data?: Array<{ id: string }> }
+        const found = data.data?.find(m => m.id.includes('haiku'))?.id
+          ?? data.data?.[0]?.id
+        if (found) return found
+      }
+    }
+
+    if (provider === 'gemini') {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+      )
+      if (res.ok) {
+        const data = await res.json() as { models?: Array<{ name: string }> }
+        const found = data.models
+          ?.find(m => m.name.includes('flash') && m.name.includes('generateContent'))
+          ?.name.replace('models/', '')
+          ?? data.models?.[0]?.name.replace('models/', '')
+        if (found) return found
+      }
+    }
+  } catch {
+    // Network failure — fall through to static defaults
+  }
+
+  const defaults: Record<Provider, string> = {
+    openai:    'gpt-4o-mini',
+    anthropic: 'claude-haiku-4-5',
+    gemini:    'gemini-2.0-flash',
+    groq:      'llama-3.1-8b-instant',
+    mistral:   'mistral-small-latest',
+    ollama:    'llama3.2',
+  }
+  return defaults[provider]
+}
+
+/**
  * Route the prompt to the correct LLM provider.
  */
 export async function callLLM(prompt: string, options: EnrichOptions): Promise<string> {
-  const { provider, model, apiKey, host } = options
+  const { provider, apiKey, host } = options
+  const model = options.model ?? await resolveModel(provider, apiKey ?? '')
 
   switch (provider) {
     case 'openai':  return callOpenAI(prompt, model, requireKey(provider, apiKey))
