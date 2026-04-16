@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * @ai-agent general-expert
  * @ai-runtime UNIVERSEL
@@ -17,7 +18,6 @@
  * @ai-validate
  * npm run typecheck
  */
-#!/usr/bin/env node
 import { writeFileSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { resolve, relative, join } from 'node:path'

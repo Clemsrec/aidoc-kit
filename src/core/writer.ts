@@ -90,7 +90,16 @@ export function writeDocBlock(filePath: string, docBlock: string): void {
   // Check for a real generated block (JSDoc line " * @ai-agent …"), not just
   // the string "@ai-agent" appearing in source code (e.g. scanner internals).
   if (existing.includes(' * @ai-agent ')) return // already documented
-  writeFileSync(filePath, docBlock + '\n' + existing, 'utf-8')
+
+  // Preserve shebang line at the very top (e.g. #!/usr/bin/env node in cli.ts)
+  if (existing.startsWith('#!')) {
+    const newlineIdx = existing.indexOf('\n')
+    const shebang = existing.slice(0, newlineIdx + 1)
+    const rest = existing.slice(newlineIdx + 1)
+    writeFileSync(filePath, shebang + docBlock + '\n' + rest, 'utf-8')
+  } else {
+    writeFileSync(filePath, docBlock + '\n' + existing, 'utf-8')
+  }
 }
 
 // ─── Builder ────────────────────────────────────────────────────────────────
