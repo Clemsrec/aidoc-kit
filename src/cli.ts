@@ -48,6 +48,34 @@ function getFlag(flag: string): string | undefined {
   const idx = args.indexOf(flag)
   return idx !== -1 ? args[idx + 1] : undefined
 }
+
+// ─── Enrich helpers ────────────────────────────────────────────────────────
+
+/**
+ * Infer the provider from the model name prefix.
+ * Used when --provider is not explicitly set but --model is.
+ */
+function inferProvider(model: string): Provider | null {
+  if (model.startsWith('claude'))                   return 'anthropic'
+  if (model.startsWith('gemini') || model.startsWith('models/gemini')) return 'gemini'
+  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) return 'openai'
+  if (model.startsWith('llama') || model.startsWith('mixtral')) return 'groq'
+  if (model.startsWith('mistral') || model.startsWith('codestral')) return 'mistral'
+  return null
+}
+
+/**
+ * Standard environment variable names per provider.
+ * Keys are read from env — never passed as CLI arguments (OWASP: shell history risk).
+ */
+const ENV_KEY_NAMES: Record<Provider, string[]> = {
+  anthropic: ['ANTHROPIC_API_KEY'],
+  openai:    ['OPENAI_API_KEY'],
+  gemini:    ['GEMINI_API_KEY', 'GOOGLE_AI_API_KEY'],
+  groq:      ['GROQ_API_KEY'],
+  mistral:   ['MISTRAL_API_KEY'],
+  ollama:    [],
+}
 function hasFlag(flag: string): boolean {
   return args.includes(flag)
 }
@@ -235,12 +263,18 @@ async function cmdEnrich(): Promise<void> {
 Usage: aidoc-kit enrich [options]
 
   --provider     openai | anthropic | gemini | groq | mistral | ollama
-  --model        Modèle à utiliser (auto-résolu si absent)
-  --key          Clé API (non nécessaire pour ollama)
-  --host         Hôte Ollama (défaut: http://localhost:11434)
-  --path <dir>   Dossier racine (défaut: .)
-  --dry          Lister les fichiers sans modifier
-  -h, --help     Afficher cette aide
+                 (auto-deduced from --model when omitted: claude-* => anthropic, etc.)
+  --model        Model name (auto-resolved via provider API when omitted)
+  --host         Ollama base URL (default: http://localhost:11434)
+  --path <dir>   Root directory (default: .)
+  --dry          List files without modifying them
+  -h, --help     Show this help
+
+API keys are read from environment variables (never pass secrets as CLI args):
+  ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY
+
+Or set them in aidoc.config.ts:
+  enrich: { provider: 'anthropic', key: process.env.ANTHROPIC_API_KEY }
 `)
     return
   }
@@ -248,11 +282,47 @@ Usage: aidoc-kit enrich [options]
   const dry = hasFlag('--dry')
   const config = loadConfig(projectRoot)
 
-  // CLI flags take priority over aidoc.config values
-  const provider = (getFlag('--provider') ?? config.enrich?.provider ?? 'gemini') as Provider
-  const apiKey = getFlag('--key') ?? config.enrich?.key
-  const host = getFlag('--host') ?? config.enrich?.host
+  // Resolve provider: explicit flag > config > inferred from model name > error
   const userModel = getFlag('--model') ?? config.enrich?.model
+  const explicitProvider = getFlag('--provider') ?? config.enrich?.provider
+
+  let provider: Provider
+  if (explicitProvider) {
+    provider = explicitProvider as Provider
+  } else if (userModel) {
+    const inferred = inferProvider(userModel)
+    if (!inferred) {
+      console.error(`Provider inconnu pour le modele "${userModel}".`)
+      console.error('Passe --provider openai|anthropic|gemini|groq|mistral|ollama')
+      process.exit(1)
+    }
+    provider = inferred
+    console.log(`Provider infere depuis le modele : ${provider}`)
+  } else {
+    console.error('Provider non determine. Passe --provider ou --model avec un nom reconnu (claude-*, gpt-*, gemini-*).')
+    process.exit(1)
+  }
+
+  // Resolve API key: config value (typically process.env.XXX) > standard env vars
+  // Passing secrets as CLI args leaks them into shell history (OWASP A02).
+  const configKey = config.enrich?.key
+  const matchedEnvVar = ENV_KEY_NAMES[provider].find(k => process.env[k] !== undefined && process.env[k] !== '')
+  const envKey = matchedEnvVar ? process.env[matchedEnvVar] : undefined
+  const apiKey = configKey ?? envKey
+
+  if (!apiKey && provider !== 'ollama') {
+    const envNames = ENV_KEY_NAMES[provider]
+    console.error(`Cle API manquante pour le provider "${provider}".`)
+    console.error(`Exporte la variable dans ton shell :`)
+    envNames.forEach(k => console.error(`  export ${k}=ta-cle`))
+    console.error(`Ou ajoute-la dans aidoc.config.ts :`)
+    console.error(`  enrich: { provider: '${provider}', key: process.env.${envNames[0] ?? 'API_KEY'} }`)
+    process.exit(1)
+  }
+
+  if (matchedEnvVar) console.log(`Cle lue depuis $${matchedEnvVar}`)
+
+  const host = getFlag('--host') ?? config.enrich?.host
 
   // Resolve model dynamically (queries provider API when none specified)
   const model = await resolveModel(provider, apiKey ?? '', userModel)
@@ -363,11 +433,12 @@ Commandes :
 
   enrich  Enrichir les blocs @ai-context avec un LLM
           --provider     openai | anthropic | gemini | groq | mistral | ollama
-          --model        Modèle à utiliser (auto-résolu si absent)
-          --key          Clé API (non nécessaire pour ollama)
+                         (auto-déduit depuis --model si absent)
+          --model        Modèle (auto-résolu via API provider si absent)
           --host         Hôte Ollama (défaut: http://localhost:11434)
           --path <dir>   Dossier racine (défaut: .)
           --dry          Lister les fichiers sans modifier
+          Clés API : ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY...
 
   run     Appliquer les règles de transformation
           --path <dir>   Dossier racine (défaut: .)

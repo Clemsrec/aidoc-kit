@@ -147,24 +147,39 @@ Also supported: `aidoc.config.js` (CommonJS `module.exports`) and `aidoc.config.
 Once `scan --write` has generated the base `@ai-*` blocks, run `enrich` to replace the generic `[GÉNÉRÉ]` descriptions with real LLM-written context:
 
 ```bash
-npx aidoc-kit enrich --provider gemini --model gemini-2.0-flash --key YOUR_KEY
-npx aidoc-kit enrich --provider openai --model gpt-4o-mini --key sk-...
-npx aidoc-kit enrich --provider anthropic --model claude-3-5-haiku-20241022 --key sk-ant-...
-npx aidoc-kit enrich --provider groq --model llama-3.1-8b-instant --key gsk_...
-npx aidoc-kit enrich --provider mistral --model mistral-small-latest --key ...
-npx aidoc-kit enrich --provider ollama --model llama3.2   # no key needed — fully local
+# Provider inferred from model name — no need to pass --provider
+export ANTHROPIC_API_KEY=sk-ant-...
+npx aidoc-kit enrich --model claude-haiku-4-5-20251001
+
+export OPENAI_API_KEY=sk-...
+npx aidoc-kit enrich --model gpt-4o-mini
+
+export GEMINI_API_KEY=...
+npx aidoc-kit enrich --model gemini-2.0-flash
+
+export GROQ_API_KEY=gsk_...
+npx aidoc-kit enrich --model llama-3.1-8b-instant
+
+# Or use --provider explicitly:
+npx aidoc-kit enrich --provider anthropic   # reads ANTHROPIC_API_KEY from env
+
+# Fully local — no key needed:
+npx aidoc-kit enrich --provider ollama --model llama3.2
 ```
+
+> **Security note:** Never pass API keys via `--key` — they appear in shell history
+> and process lists. aidoc-kit reads keys from environment variables automatically:
+> `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`.
 
 Use `--dry` to preview which files would be enriched without making any changes.
 
-You can also set the default provider in `aidoc.config.js` to avoid repeating flags:
+You can also set the default provider in `aidoc.config.ts` to avoid repeating flags:
 
-```js
-module.exports = {
+```ts
+export default {
   enrich: {
-    provider: 'gemini',
-    model: 'gemini-2.0-flash',
-    key: process.env.GEMINI_API_KEY,   // never hardcode keys
+    provider: 'anthropic',
+    key: process.env.ANTHROPIC_API_KEY,   // never hardcode keys
   },
 }
 ```
