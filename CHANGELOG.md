@@ -2,7 +2,35 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
-## [1.0.0] - 2026-04-16
+## [1.0.3] - 2026-04-16
+
+### Fixed
+
+- `@ai-cascade` entries now use plain dash (`- file`) instead of `=>` —
+  `>` crashes SWC when parsing `.tsx` files even inside JSDoc comments
+- `fix arrows` command now also replaces `=>` patterns (from v0.3.1–1.0.2)
+  in addition to Unicode `→` (from v0.2.x)
+
+### Rule established
+
+**`@ai-*` blocks injected into source files must be 100% ASCII.**
+Emojis and special characters are only used in CLI console output,
+never in code injected into `.ts` / `.tsx` files.
+
+---
+
+## [1.0.2] - 2026-04-16
+
+- Fix `writeDocBlock` shebang handling — `#!/usr/bin/env node` is now preserved
+  as the first line when writing blocks to `cli.ts`-style files
+
+## [1.0.1] - 2026-04-16
+
+- Fix `writeDocBlock` false positive — guard tightened to ` * @ai-agent ` (JSDoc
+  format) to avoid skipping files that contain `@ai-agent` in their source code
+  (e.g. `scanner.ts`, `types.ts`)
+
+
 
 ### Highlights
 

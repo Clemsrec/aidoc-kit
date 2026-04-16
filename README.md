@@ -74,8 +74,8 @@ That's all a new user needs. `init` reads `package.json`, detects frameworks, au
  * 2. Lancer @ai-validate après toute modification
  *
  * @ai-cascade
- * → src/hooks/use-auth.ts
- * → src/lib/types.ts
+ * - src/hooks/use-auth.ts
+ * - src/lib/types.ts
  *
  * @ai-validate
  * npm run typecheck
@@ -264,6 +264,18 @@ One of aidoc-kit's core features is the **reverse import map**: for every file, 
 ## Why zero dependencies?
 
 aidoc-kit uses only Node.js built-ins + the TypeScript compiler already installed in every TypeScript project. No extra packages, no version conflicts, no supply chain risk.
+
+> All generated `@ai-*` blocks are 100% ASCII. No Unicode characters
+> are ever injected into source files — ensuring compatibility with
+> SWC, Turbopack, Babel, and esbuild across all Next.js versions.
+
+## The ASCII contract
+
+**Rule:** `@ai-*` blocks injected into `.ts` / `.tsx` source files must contain only printable ASCII characters (U+0020–U+007E).
+
+**Why it matters:** SWC, Turbopack, Babel, and esbuild parse source files with varying Unicode tolerance. A character as common as `→` (U+2192) or `>` in a comment can crash SWC inside a `.tsx` file with *"Unexpected token"*. Since aidoc-kit injects blocks into files that will be compiled, ASCII-only is the only universally safe choice.
+
+**Where characters outside ASCII are allowed:** CLI output (`console.log`), chunk `.md` files, `AGENTS.md`, `.codemod/ai-knowledge-base.json` — these are never parsed by a JS/TS compiler.
 
 ## Roadmap
 
