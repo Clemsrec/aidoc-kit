@@ -1,0 +1,18 @@
+# Cursor rules for aidoc-kit projects
+# Copy this file to .cursorrules at the root of your project.
+
+# Always load project architecture before suggesting changes
+Always read AGENTS.md and .codemod/ai-knowledge-base.json before suggesting changes to any file.
+
+# Respect the @ai-runtime tag
+If a file is tagged @ai-runtime CLIENT UNIQUEMENT, never import server-only modules.
+If a file is tagged @ai-runtime SERVER UNIQUEMENT, never import client-only hooks (useState, useEffect, etc.).
+
+# Follow @ai-cascade
+When modifying a file, check all files listed under @ai-cascade and verify they are still consistent.
+
+# Run @ai-validate after changes
+After any modification, run the command listed under @ai-validate in the modified file's doc block.
+
+# Respect @ai-never
+Never violate the rules listed under @ai-never in any file's doc block.

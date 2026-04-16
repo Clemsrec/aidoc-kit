@@ -2,6 +2,20 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.1.0] — 2026-04-16
+
+### Changed
+- Provider init now detects API keys from .env automatically
+- Model names are never hardcoded — resolved via /models API at runtime
+- Error messages no longer suggest specific model identifiers
+
+### Added
+- `aidoc-kit models` command to list available models for configured provider
+- Support for GitHub Copilot / VS Code Agent mode (prompt-export)
+- Manual mode for projects without any LLM setup
+
+---
+
 ## [1.0.3] - 2026-04-16
 
 ### Fixed

@@ -255,6 +255,15 @@ Usage: aidoc-kit chunk [options]
   }
 }
 
+// ─── models ─────────────────────────────────────────────────────────────
+
+async function cmdModels(): Promise<void> {
+  // TODO: fetch /models from configured provider
+  // TODO: flag deprecated models
+  // TODO: suggest updating aidoc.config.ts if current model is deprecated
+  console.log('aidoc-kit models — not yet implemented. See DESIGN.md.')
+}
+
 // ─── enrich ──────────────────────────────────────────────────────────────
 
 async function cmdEnrich(): Promise<void> {
@@ -263,8 +272,9 @@ async function cmdEnrich(): Promise<void> {
 Usage: aidoc-kit enrich [options]
 
   --provider     openai | anthropic | gemini | groq | mistral | ollama
-                 (auto-deduced from --model when omitted: claude-* - anthropic, etc.)
-  --model        Model name (auto-resolved via provider API when omitted)
+                 (auto-deduced from --model prefix when omitted)
+  --model        Model name (auto-resolved via provider API when omitted;
+                 run \`npx aidoc-kit models\` to list available models)
   --host         Ollama base URL (default: http://localhost:11434)
   --path <dir>   Root directory (default: .)
   --dry          List files without modifying them
@@ -294,12 +304,14 @@ Or set them in aidoc.config.ts:
     if (!inferred) {
       console.error(`Unknown provider for model "${userModel}".`)
       console.error('Pass --provider openai|anthropic|gemini|groq|mistral|ollama')
+      console.error('Run `npx aidoc-kit models` to see available models for your provider.')
       process.exit(1)
     }
     provider = inferred
     console.log(`Provider inferred from model: ${provider}`)
   } else {
-    console.error('Provider not set. Pass --provider or --model with a recognized name (claude-*, gpt-*, gemini-*).')
+    console.error('No provider configured. Run `npx aidoc-kit init` to set up your AI source.')
+    console.error('Run `npx aidoc-kit models` to see available models for your provider.')
     process.exit(1)
   }
 
@@ -349,14 +361,17 @@ Or set them in aidoc.config.ts:
   const reverseMap = buildReverseImportMap(allFiles, projectRoot)
   const ignorePatterns = config.ignore ?? []
 
-  // Only enrich files without an existing @ai-context (non-default content)
+  // Target all files with @ai-context that haven't been enriched by an LLM yet
   const toEnrich = allFiles.filter(f => {
     const rel = relative(projectRoot, f)
     if (ignorePatterns.length > 0 && isIgnored(rel, ignorePatterns)) return false
     try {
       const src = readSourceLines(f).join('\n')
-      // Skip if already has a non-generated context
-      return src.includes('@ai-agent') && src.includes('[GÉNÉRÉ]')
+      // Must have @ai-context
+      if (!src.includes('@ai-context')) return false
+      // Skip if already enriched by an LLM
+      if (src.includes('@ai-enriched')) return false
+      return true
     } catch {
       return false
     }
@@ -385,8 +400,8 @@ Or set them in aidoc.config.ts:
     const lines = readSourceLines(filePath)
     const importedBy = (reverseMap.get(filePath) ?? []).map(f => relative(projectRoot, f))
 
-    // Extract export names from existing @ai-context line
-    const contextLine = lines.find(l => l.includes('[GÉNÉRÉ] Ce fichier exporte'))
+    // Extract export names from existing @ai-context line (supports [GÉNÉRÉ] and [GENERATED])
+    const contextLine = lines.find(l => /\[GÉ?NÉRÉ?\].*Ce fichier exporte|\[GENERATED\].*This file exports/i.test(l))
     const exportNames = contextLine
       ? (contextLine.split(':')[1] ?? '').trim().split(',').map(s => s.trim()).filter(Boolean)
       : []
@@ -402,11 +417,13 @@ Or set them in aidoc.config.ts:
         continue
       }
 
-      // Replace [GÉNÉRÉ] line with LLM description
+      // Replace entire @ai-context block content (supports empty, [GÉNÉRÉ], or any text)
       const source = lines.join('\n')
+      const today = new Date().toISOString().slice(0, 10)
+      const safeDesc = description.replace(/\$/g, '$$$$')
       const updated = source.replace(
-        /\[GÉNÉRÉ\] Ce fichier exporte[^\n]*/,
-        description.replace(/\$/g, '$$$$'),
+        /(\* @ai-context\b)([^*]|\*(?!\/))*?(\* @ai-)/,
+        `$1\n * ${safeDesc}\n * @ai-enriched ${today}\n * @ai-`,
       )
 
       if (source !== updated) {
@@ -454,6 +471,8 @@ Commands:
           --path <dir>   Root directory (default: .)
           --dry          List files without modifying
           API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY...
+
+  models  List available models for the configured provider
 
   run     Apply transformation rules
           --path <dir>   Root directory (default: .)
@@ -518,6 +537,12 @@ Usage: aidoc-kit init [options]
     break
   case 'chunk':
     cmdChunk().catch((err: unknown) => {
+      console.error(err)
+      process.exit(1)
+    })
+    break
+  case 'models':
+    cmdModels().catch((err: unknown) => {
       console.error(err)
       process.exit(1)
     })
