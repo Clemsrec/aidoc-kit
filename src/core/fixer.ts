@@ -23,9 +23,13 @@ import { walkDir } from './scanner'
 
 /**
  * Replaces legacy arrow characters in @ai-* blocks across the project:
- * - Unicode arrow \u2192 (\u2192) — injected by aidoc-kit < 0.3.1, crashes Turbopack
+ * - Unicode arrow \u2192 (→) — injected by aidoc-kit < 0.3.1, crashes Turbopack
  * - ASCII arrow => — injected by aidoc-kit 0.3.1-1.0.2, crashes SWC in .tsx (JSX >)
  * Both are replaced with a plain dash (-), safe for all parsers.
+ *
+ * IMPORTANT: generated @ai-* blocks must be 100% ASCII.
+ * No Unicode characters — SWC, Turbopack, Babel, and esbuild all have
+ * different tolerance levels. Plain dash is the only universally safe choice.
  */
 export function fixArrows(rootDir: string): void {
   const files = walkDir(rootDir)
@@ -38,9 +42,10 @@ export function fixArrows(rootDir: string): void {
     const hasAsciiArrow = / \* => /.test(content)
     if (!hasUnicode && !hasAsciiArrow) continue
 
-    let updated = content
-    if (hasUnicode) updated = updated.split('\u2192').join('-')
-    if (hasAsciiArrow) updated = updated.split(' * => ').join(' * - ')
+    // Replace both forms: unicode arrow and ASCII => in JSDoc cascade lines
+    const updated = content
+      .split('\u2192').join('-')
+      .replace(/(\* )=> (\S)/g, '$1- $2')
     writeFileSync(file, updated, 'utf-8')
     fixed++
     console.log(`  \u2713 ${relative(rootDir, file)}`)

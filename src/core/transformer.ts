@@ -29,6 +29,9 @@ export function generateAiDocBlock(
   const importedIn = cascadeDeps.length > 0
     ? `Importé dans : ${cascadeDeps.join(', ')}`
     : ''
+  // IMPORTANT: generated @ai-* blocks must be 100% ASCII.
+  // No Unicode characters — SWC, Turbopack, Babel, and esbuild all have
+  // different tolerance levels. Plain dash is the only universally safe choice.
   const cascadeLines = cascadeDeps.length > 0
     ? cascadeDeps.map(f => ` * - ${f}`).join('\n')
     : ' * (aucun détecté)'
