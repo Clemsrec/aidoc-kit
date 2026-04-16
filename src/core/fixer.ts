@@ -1,3 +1,22 @@
+/**
+ * @ai-agent general-expert
+ * @ai-runtime UNIVERSEL
+ *
+ * @ai-context
+ * [GÉNÉRÉ] Ce fichier exporte : fixArrows
+ * Importé dans : src/cli.ts
+ *
+ * @ai-when-modifying
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ *
+ * @ai-cascade
+ * => src/cli.ts
+ *
+ * @ai-validate
+ * npm run typecheck
+ */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { relative } from 'node:path'
 import { walkDir } from './scanner'

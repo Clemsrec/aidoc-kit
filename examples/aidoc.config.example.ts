@@ -1,4 +1,23 @@
 /**
+ * @ai-agent general-expert
+ * @ai-runtime SERVER UNIQUEMENT
+ *
+ * @ai-context
+ * [GÉNÉRÉ] Ce fichier exporte : aidoc.config.example.ts
+ * 
+ *
+ * @ai-when-modifying
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ *
+ * @ai-cascade
+ * (aucun détecté)
+ *
+ * @ai-validate
+ * npm run typecheck
+ */
+/**
  * aidoc-kit — Example configuration for a Next.js + Firebase + Stripe project
  *
  * Rename this file to `aidoc.config.js` (or `aidoc.config.json`) at your project root.

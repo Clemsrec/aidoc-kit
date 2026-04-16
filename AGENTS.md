@@ -1,104 +1,63 @@
-# AGENTS.md — aidoc-kit
+# AGENTS
 
-> Instructions for AI agents (GitHub Copilot, Cursor, Claude, etc.) working on **this** repository.
+> Généré par aidoc-kit le 2026-04-16
+> 13 fichiers scannés — 8 avec docs @ai-*
 
----
+## Agents et leurs domaines
 
-## Project overview
+### general-expert
 
-**aidoc-kit** is a zero-dependency Node.js/TypeScript library that:
-- Scans a JS/TS project via the **native TypeScript compiler AST**
-- Generates `@ai-*` JSDoc blocks on each source file
-- Builds a reverse dependency graph (`@ai-cascade`)
-- Produces `.codemod/ai-knowledge-base.json` and `AGENTS.md` for AI agents
+**Fichiers :** 8
+- `examples/aidoc.config.example.ts`
+- `src/core/chunker.ts`
+- `src/core/config.ts`
+- `src/core/enricher.ts`
+- `src/core/fixer.ts`
+- `src/core/init.ts`
+- `src/index.ts`
+- `src/rules/index.ts`
 
----
+## Runtime Map
 
-## Source architecture
+### SERVER UNIQUEMENT (2 fichiers)
 
-```
-src/
-├── cli.ts              → CLI entry point (aidoc-kit scan / run)
-├── index.ts            → Programmatic API exports
-├── types.ts            → All TypeScript interfaces (AiDocBlock, Rule, ScanResult, …)
-├── core/
-│   ├── config.ts       → aidoc.config.js / .json loader + isIgnored()
-│   ├── scanner.ts      → File walker, AST parser, extractAiDocs(), buildReverseImportMap()
-│   ├── transformer.ts  → generateAiDocBlock(), inferAgent(), applyRules()
-│   └── writer.ts       → writeKnowledgeBase(), writeAgentsMd(), writeDocBlock()
-└── rules/
-    └── index.ts        → Built-in transformation rules (removeConsoleLogs, replaceAnyWithUnknown)
-```
+- `examples/aidoc.config.example.ts`
+- `src/core/init.ts`
 
-### Data flow
+### CLIENT UNIQUEMENT (1 fichiers)
 
-```
-scanProject()
-  └── walkDir() → list all .ts/.tsx/.js/.jsx files
-  └── extractAiDocs() → parse @ai-* tags from JSDoc blocks (per file)
-  └── buildReverseImportMap() → AST import resolution → cascade graph
+- `src/core/chunker.ts`
 
-generateAiDocBlock()
-  └── detectRuntime() → 'use client' / 'use server' / firebase-admin heuristics
-  └── extractImports() → all import specifiers
-  └── inferAgent() → custom config rules → built-in rules → path heuristics
+### UNIVERSEL (5 fichiers)
 
-writeKnowledgeBase() → .codemod/ai-knowledge-base.json
-writeAgentsMd()      → AGENTS.md at project root
-writeDocBlock()      → prepend @ai-* block to a source file
-```
+- `src/core/config.ts`
+- `src/core/enricher.ts`
+- `src/core/fixer.ts`
+- `src/index.ts`
+- `src/rules/index.ts`
 
----
+## Fichiers sans documentation @ai-*
 
-## Absolute rules
-
-- **Zero external dependencies.** Node.js built-ins + `typescript` (peer dep) only. Never `npm install` a package just for convenience.
-- **Do not modify** `scanner.ts`, `transformer.ts`, or `writer.ts` core logic unless explicitly asked.
-- **TypeScript strict mode** — no `any`, no implicit returns, no unused variables.
-- All type definitions live in `types.ts`. Do not scatter interfaces across files.
-
----
-
-## How to add a new `@ai-*` tag
-
-1. Add the field to `AiDocBlock` in `src/types.ts`
-2. Add extraction in `extractAiDocs()` in `src/core/scanner.ts` (use `extractTag` / `extractTagLines`)
-3. Add generation in `generateAiDocBlock()` in `src/core/transformer.ts`
-4. If the tag belongs in the indexed knowledge base, update `writeKnowledgeBase()` in `src/core/writer.ts`
-5. Add a row to the tag table in `README.md`
-
-## How to add a new agent inference rule
-
-Open `inferAgent()` in `src/core/transformer.ts`. Add your rule in the built-in section, **most specific first**. Include a comment explaining which import path or library it targets.
-
-```typescript
-// Example: Prisma ORM → database-expert
-if (imports.some(i => i.includes('@prisma/client'))) return 'database-expert'
-```
-
----
-
-## Build & development
+5 fichier(s) sans bloc `@ai-*` détecté(s).
+Le développeur peut générer les blocs manquants avec :
 
 ```bash
-npm install          # install devDependencies (TypeScript only)
-npm run build        # tsc → compiles to dist/
-npm run typecheck    # type-check without emitting
-npm run dev          # tsc --watch
+npx aidoc-kit scan --write --yes
 ```
 
-## Testing
+> **Note pour les agents IA** : ne pas exécuter cette commande toi-même.
+> La signaler au développeur si tu constates des fichiers non documentés.
 
-```bash
-npm run test         # runs Node.js built-in test runner on dist/**/*.test.js
-```
+## Fichiers volumineux — lire le chunk avant de modifier
 
-> No test files yet — contributions welcome. Tests should live alongside source as `src/**/*.test.ts`.
+Les fichiers de plus de 150 lignes ont un résumé structuré dans `.codemod/chunks/`.
+Avant de modifier un fichier volumineux, **lire le fichier `.md` correspondant** dans ce dossier.
+Ne pas tenter de lire le fichier source en entier — utiliser le chunk.
 
----
+Exemple : avant de modifier `src/contexts/auth-context.tsx`
+=> Lire `.codemod/chunks/src/contexts/auth-context.tsx.md`
 
-## Before submitting a PR
-
-- `npm run build` must pass with zero TypeScript errors
-- No new external dependencies
-- One feature/fix per PR, focused diff
+> Les chunks sont générés et maintenus par le développeur via `npx aidoc-kit chunk`.
+> Si un chunk est manquant, demander au développeur de lancer cette commande.
+> **Note pour les agents IA** : aidoc-kit doit être installé en dev dep (`npm install -D aidoc-kit`).
+> Toutes les commandes aidoc-kit sont à confier au développeur, pas à exécuter directement.

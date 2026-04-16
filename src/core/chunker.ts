@@ -1,3 +1,22 @@
+/**
+ * @ai-agent general-expert
+ * @ai-runtime CLIENT UNIQUEMENT
+ *
+ * @ai-context
+ * [GÉNÉRÉ] Ce fichier exporte : FileChunk, chunkFile, writeChunk
+ * Importé dans : src/cli.ts
+ *
+ * @ai-when-modifying
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ *
+ * @ai-cascade
+ * => src/cli.ts
+ *
+ * @ai-validate
+ * npm run typecheck
+ */
 import * as ts from 'typescript'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'

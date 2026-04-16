@@ -1,3 +1,26 @@
+/**
+ * @ai-agent types-expert
+ * @ai-runtime UNIVERSEL
+ *
+ * @ai-context
+ * [GÉNÉRÉ] Ce fichier exporte : AiDocBlock, Rule, ScanResult, AidocConfig, KnowledgeBase
+ * Importé dans : src/core/config.ts, src/rules/index.ts, src/core/scanner.ts, src/core/transformer.ts, src/core/writer.ts
+ *
+ * @ai-when-modifying
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ *
+ * @ai-cascade
+ * => src/core/config.ts
+ * => src/rules/index.ts
+ * => src/core/scanner.ts
+ * => src/core/transformer.ts
+ * => src/core/writer.ts
+ *
+ * @ai-validate
+ * npm run typecheck
+ */
 import type * as ts from 'typescript'
 
 // ─── Core doc block ────────────────────────────────────────────────────────

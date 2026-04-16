@@ -1,3 +1,23 @@
+/**
+ * @ai-agent general-expert
+ * @ai-runtime UNIVERSEL
+ *
+ * @ai-context
+ * [GÉNÉRÉ] Ce fichier exporte : buildReverseImportMap, scanProject, extractAiDocs, walkDir
+ * Importé dans : src/core/fixer.ts, src/cli.ts
+ *
+ * @ai-when-modifying
+ * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
+ * 2. Après modification, indiquer au développeur de lancer @ai-validate
+ * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ *
+ * @ai-cascade
+ * => src/core/fixer.ts
+ * => src/cli.ts
+ *
+ * @ai-validate
+ * npm run typecheck
+ */
 import * as ts from 'typescript'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, extname, relative, resolve, dirname } from 'node:path'

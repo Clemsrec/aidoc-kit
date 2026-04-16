@@ -87,7 +87,9 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
 
 export function writeDocBlock(filePath: string, docBlock: string): void {
   const existing = readFileSync(filePath, 'utf-8')
-  if (existing.includes('@ai-agent')) return // already documented
+  // Check for a real generated block (JSDoc line " * @ai-agent …"), not just
+  // the string "@ai-agent" appearing in source code (e.g. scanner internals).
+  if (existing.includes(' * @ai-agent ')) return // already documented
   writeFileSync(filePath, docBlock + '\n' + existing, 'utf-8')
 }
 
