@@ -30,7 +30,7 @@ export function generateAiDocBlock(
     ? `Importé dans : ${cascadeDeps.join(', ')}`
     : ''
   const cascadeLines = cascadeDeps.length > 0
-    ? cascadeDeps.map(f => ` * => ${f}`).join('\n')
+    ? cascadeDeps.map(f => ` * - ${f}`).join('\n')
     : ' * (aucun détecté)'
 
   return `/**

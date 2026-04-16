@@ -71,7 +71,7 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     'Ne pas tenter de lire le fichier source en entier — utiliser le chunk.',
     '',
     'Exemple : avant de modifier `src/contexts/auth-context.tsx`',
-    '=> Lire `.codemod/chunks/src/contexts/auth-context.tsx.md`',
+    '- Lire `.codemod/chunks/src/contexts/auth-context.tsx.md`',
     '',
     '> Les chunks sont générés et maintenus par le développeur via `npx aidoc-kit chunk`.',
     '> Si un chunk est manquant, demander au développeur de lancer cette commande.',

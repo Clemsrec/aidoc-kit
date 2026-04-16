@@ -22,9 +22,10 @@ import { relative } from 'node:path'
 import { walkDir } from './scanner'
 
 /**
- * Replaces Unicode arrow → (U+2192) with ASCII => in all @ai-* blocks
- * across the project. Fixes compatibility issue with Turbopack / Next.js 16
- * which fails to parse non-ASCII characters in JSDoc comments.
+ * Replaces legacy arrow characters in @ai-* blocks across the project:
+ * - Unicode arrow \u2192 (\u2192) — injected by aidoc-kit < 0.3.1, crashes Turbopack
+ * - ASCII arrow => — injected by aidoc-kit 0.3.1-1.0.2, crashes SWC in .tsx (JSX >)
+ * Both are replaced with a plain dash (-), safe for all parsers.
  */
 export function fixArrows(rootDir: string): void {
   const files = walkDir(rootDir)
@@ -32,16 +33,21 @@ export function fixArrows(rootDir: string): void {
 
   for (const file of files) {
     const content = readFileSync(file, 'utf-8')
-    if (!content.includes('\u2192')) continue
+    // Match either form, but only on @ai-cascade lines inside JSDoc blocks
+    const hasUnicode = content.includes('\u2192')
+    const hasAsciiArrow = / \* => /.test(content)
+    if (!hasUnicode && !hasAsciiArrow) continue
 
-    const updated = content.split('\u2192').join('=>')
+    let updated = content
+    if (hasUnicode) updated = updated.split('\u2192').join('-')
+    if (hasAsciiArrow) updated = updated.split(' * => ').join(' * - ')
     writeFileSync(file, updated, 'utf-8')
     fixed++
     console.log(`  \u2713 ${relative(rootDir, file)}`)
   }
 
   if (fixed === 0) {
-    console.log('Aucun caractere → detecte dans les fichiers du projet.')
+    console.log('Aucun caractere fleche detecte dans les fichiers du projet.')
   } else {
     console.log(`\n\u2713 ${fixed} fichier(s) corrige(s)`)
   }
