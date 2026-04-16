@@ -27,27 +27,27 @@ export function generateAiDocBlock(
 
   const exportList = exports.length > 0 ? exports.join(', ') : basename(filePath)
   const importedIn = cascadeDeps.length > 0
-    ? `Importé dans : ${cascadeDeps.join(', ')}`
+    ? `Imported by: ${cascadeDeps.join(', ')}`
     : ''
   // IMPORTANT: generated @ai-* blocks must be 100% ASCII.
   // No Unicode characters — SWC, Turbopack, Babel, and esbuild all have
   // different tolerance levels. Plain dash is the only universally safe choice.
   const cascadeLines = cascadeDeps.length > 0
     ? cascadeDeps.map(f => ` * - ${f}`).join('\n')
-    : ' * (aucun détecté)'
+    : ' * (none detected)'
 
   return `/**
  * @ai-agent ${agent}
  * @ai-runtime ${runtime}
  *
  * @ai-context
- * [GÉNÉRÉ] Ce fichier exporte : ${exportList}
+ * [GENERATED] This file exports: ${exportList}
  * ${importedIn}
  *
  * @ai-when-modifying
- * 1. Vérifier les fichiers en cascade ci-dessous avant de modifier
- * 2. Après modification, indiquer au développeur de lancer @ai-validate
- * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
+ * 1. Check cascade files below before modifying
+ * 2. After modifying, ask the developer to run @ai-validate
+ * 3. If you have no terminal access, report the command to run
  *
  * @ai-cascade
 ${cascadeLines}
@@ -174,7 +174,7 @@ function inferAgent(
 /**
  * Detect the execution environment from source code.
  * Explicit directives (`'use client'`, `'use server'`) take priority,
- * then heuristics (React hooks → CLIENT, firebase-admin imports → SERVER).
+ * then heuristics (React hooks - CLIENT, firebase-admin imports - SERVER).
  */
 function detectRuntime(source: string): string {
   // Only inspect the file head for the directives to avoid false positives inside strings

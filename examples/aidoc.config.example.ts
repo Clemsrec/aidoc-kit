@@ -32,7 +32,7 @@ const config: AidocConfig = {
 
   // ─── Agent inference overrides ─────────────────────────────────────────
   //
-  // Map any import substring → agent name.
+  // Map any import substring - agent name.
   // Rules are checked BEFORE the built-in heuristics, most specific wins.
   //
   agents: {
@@ -63,9 +63,9 @@ const config: AidocConfig = {
   // ─── Files / directories to ignore ────────────────────────────────────
   //
   // Supports:
-  //   'src/generated/'   → any file under that directory
-  //   '*.test.ts'        → any file ending in .test.ts
-  //   'src/foo/bar.ts'   → exact relative path
+  //   'src/generated/'   - any file under that directory
+  //   '*.test.ts'        - any file ending in .test.ts
+  //   'src/foo/bar.ts'   - exact relative path
   //
   ignore: [
     // auto-generated code — never needs @ai-* blocks
@@ -95,6 +95,26 @@ const config: AidocConfig = {
   // Use a command that catches type errors AND runtime issues quickly.
   //
   validate: 'npm run typecheck && npm run lint',
-}
 
-export default config
+  // ─── LLM enrichment ───────────────────────────────────────────────────
+  //
+  // Used by `npx aidoc-kit enrich` to replace [GENERE] placeholders
+  // with real LLM-generated descriptions.
+  //
+  enrich: {
+    provider: 'anthropic',
+
+    // API key — never hardcode a real key here.
+    // aidoc-kit reads from process.env automatically.
+    // Load your .env before running:
+    //   source .env && npx aidoc-kit enrich
+    // Or use dotenv-cli:
+    //   npx dotenv -e .env.local -- aidoc-kit enrich
+    key: process.env.ANTHROPIC_API_KEY,
+
+    // model — optional, resolved dynamically via provider API if omitted.
+    // Set explicitly only if dynamic resolution fails.
+    // Anthropic models: https://docs.anthropic.com/en/docs/about-claude/models
+    // model: 'claude-haiku-4-5-20251001',
+  },
+}

@@ -12,8 +12,8 @@
  * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
- * => src/core/fixer.ts
- * => src/cli.ts
+ * - src/core/fixer.ts
+ * - src/cli.ts
  *
  * @ai-validate
  * npm run typecheck
@@ -31,12 +31,12 @@ const IGNORED_DIRS = new Set([
 // ─── Public API ────────────────────────────────────────────────────────────
 
 /**
- * Build a map from each file (absolute path) → the set of files that import it.
+ * Build a map from each file (absolute path) - the set of files that import it.
  * Resolves relative imports (./foo, ../bar) and @/ alias imports common in Next.js projects.
  * Pass `rootDir` to enable @/ alias resolution (mapped to `<rootDir>/src/`).
  */
 export function buildReverseImportMap(files: string[], rootDir?: string): Map<string, string[]> {
-  // forward: absPath → [absPath of each resolved import]
+  // forward: absPath - [absPath of each resolved import]
   const forward = new Map<string, string[]>()
 
   for (const file of files) {
@@ -57,7 +57,7 @@ export function buildReverseImportMap(files: string[], rootDir?: string): Map<st
           // Relative import: ./foo or ../bar
           resolved = resolveImport(dirname(file), spec)
         } else if (rootDir && spec.startsWith('@/')) {
-          // @/ alias → <rootDir>/src/<rest>  (standard Next.js / Vite convention)
+          // @/ alias - <rootDir>/src/<rest>  (standard Next.js / Vite convention)
           const rest = spec.slice(2) // strip '@/'
           resolved =
             resolveImport(join(rootDir, 'src'), rest) ??
@@ -70,7 +70,7 @@ export function buildReverseImportMap(files: string[], rootDir?: string): Map<st
     forward.set(file, deps)
   }
 
-  // reverse: absPath → [absPath of files that import it] (deduplicated)
+  // reverse: absPath - [absPath of files that import it] (deduplicated)
   const reverse = new Map<string, string[]>()
   for (const file of files) reverse.set(file, [])
 

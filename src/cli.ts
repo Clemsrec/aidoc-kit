@@ -83,7 +83,7 @@ function hasFlag(flag: string): boolean {
 // ─── Confirmation prompt ───────────────────────────────────────────────────
 
 function confirm(message: string): Promise<boolean> {
-  // --yes / -y flag or non-interactive (piped, CI) → proceed without prompt
+  // --yes / -y flag or non-interactive (piped, CI) - proceed without prompt
   if (hasFlag('--yes') || hasFlag('-y') || !process.stdin.isTTY) return Promise.resolve(true)
   return new Promise(resolve => {
     const rl = createInterface({ input: process.stdin, output: process.stdout })
@@ -101,11 +101,11 @@ async function cmdScan(): Promise<void> {
     console.log(`
 Usage: aidoc-kit scan [options]
 
-  --path <dir>   Dossier racine (défaut: .)
-  --write        Écrire les blocs @ai-* manquants (confirmation interactive)
-  --yes, -y      Passer la confirmation (CI, pipe, non-interactif)
-  --dry          Afficher les blocs générés sans modifier les fichiers
-  -h, --help     Afficher cette aide
+  --path <dir>   Root directory (default: .)
+  --write        Write missing @ai-* blocks (interactive confirmation)
+  --yes, -y      Skip confirmation (CI, pipe, non-interactive)
+  --dry          Preview generated blocks without modifying files
+  -h, --help     Show this help
 `)
     return
   }
@@ -115,7 +115,7 @@ Usage: aidoc-kit scan [options]
 
   const config = loadConfig(projectRoot)
 
-  console.log(`\naidoc-kit scan → ${projectRoot}\n`)
+  console.log(`\naidoc-kit scan - ${projectRoot}\n`)
 
   const result = scanProject(projectRoot)
 
@@ -125,9 +125,9 @@ Usage: aidoc-kit scan [options]
     ? result.filesWithoutDocs.filter(f => !isIgnored(f, ignorePatterns))
     : result.filesWithoutDocs
 
-  console.log(`✓ ${result.totalScanned} fichiers scannés`)
-  console.log(`✓ ${result.docs.length} fichiers avec blocs @ai-*`)
-  console.log(`✗ ${filteredWithoutDocs.length} fichiers sans docs${ignorePatterns.length > 0 ? ' (après filtres ignore)' : ''}\n`)
+  console.log(`✓ ${result.totalScanned} files scanned`)
+  console.log(`✓ ${result.docs.length} files with @ai-* blocks`)
+  console.log(`✗ ${filteredWithoutDocs.length} files without docs${ignorePatterns.length > 0 ? ' (after ignore filters)' : ''}\n`)
 
   if (filteredWithoutDocs.length > 0 && (write || dry)) {
     // Build reverse import map over ALL project files (docs + all undocumented, regardless of
@@ -140,7 +140,7 @@ Usage: aidoc-kit scan [options]
     const reverseMap = buildReverseImportMap(allAbsFiles, projectRoot)
 
     if (dry) {
-      console.log('Aperçu des blocs générés :')
+      console.log('Preview of generated blocks:')
       for (const relFile of filteredWithoutDocs) {
         const absFile = resolve(projectRoot, relFile)
         const importers = (reverseMap.get(absFile) ?? []).map(f => relative(projectRoot, f))
@@ -151,10 +151,10 @@ Usage: aidoc-kit scan [options]
     } else {
       // Ask confirmation before writing
       const ok = await confirm(
-        `→ Écrire les blocs @ai-* dans ${filteredWithoutDocs.length} fichier(s) ?`,
+        `- Write @ai-* blocks in ${filteredWithoutDocs.length} file(s)?`,
       )
       if (!ok) {
-        console.log('Annulé.')
+        console.log('Cancelled.')
         return
       }
       console.log()
@@ -173,8 +173,8 @@ Usage: aidoc-kit scan [options]
   if (!dry) {
     writeKnowledgeBase(result, projectRoot)
     writeAgentsMd(result, projectRoot)
-    console.log('✓ .codemod/ai-knowledge-base.json mis à jour')
-    console.log('✓ AGENTS.md mis à jour')
+    console.log('✓ .codemod/ai-knowledge-base.json updated')
+    console.log('✓ AGENTS.md updated')
   }
 }
 
@@ -185,16 +185,16 @@ function cmdRun(): void {
     console.log(`
 Usage: aidoc-kit run [options]
 
-  --path <dir>   Dossier racine (défaut: .)
-  --dry          Afficher les changements sans modifier les fichiers
-  -h, --help     Afficher cette aide
+  --path <dir>   Root directory (default: .)
+  --dry          Preview changes without modifying files
+  -h, --help     Show this help
 `)
     return
   }
   const projectRoot = resolve(getFlag('--path') ?? '.')
   const dry = hasFlag('--dry')
 
-  console.log(`\naidoc-kit run → ${projectRoot}\n`)
+  console.log(`\naidoc-kit run - ${projectRoot}\n`)
 
   const result = scanProject(projectRoot)
   let changedCount = 0
@@ -210,9 +210,9 @@ Usage: aidoc-kit run [options]
   }
 
   if (changedCount === 0) {
-    console.log('Aucune transformation à appliquer.')
+    console.log('No transformations to apply.')
   } else {
-    console.log(`\n${dry ? '[dry]' : '✓'} ${changedCount} fichier(s) transformé(s)`)
+    console.log(`\n${dry ? '[dry]' : '✓'} ${changedCount} file(s) transformed`)
   }
 }
 
@@ -223,14 +223,14 @@ async function cmdChunk(): Promise<void> {
     console.log(`
 Usage: aidoc-kit chunk [options]
 
-  --path <dir>   Dossier racine (défaut: .)
-  -h, --help     Afficher cette aide
+  --path <dir>   Root directory (default: .)
+  -h, --help     Show this help
 `)
     return
   }
   const projectRoot = resolve(getFlag('--path') ?? '.')
 
-  console.log(`\naidoc-kit chunk → ${projectRoot}\n`)
+  console.log(`\naidoc-kit chunk - ${projectRoot}\n`)
 
   const allFiles = walkDir(projectRoot)
   const reverseMap = buildReverseImportMap(allFiles, projectRoot)
@@ -242,16 +242,16 @@ Usage: aidoc-kit chunk [options]
     const chunk = chunkFile(filePath, importedBy, projectRoot)
     if (chunk) {
       writeChunk(chunk, codemodDir)
-      console.log(`  📦 ${chunk.filePath} (${chunk.totalLines} lignes)`)
+      console.log(`  📦 ${chunk.filePath} (${chunk.totalLines} lines)`)
       chunked++
     }
   }
 
   if (chunked === 0) {
-    console.log(`Aucun fichier ne dépasse le seuil (150 lignes). Chunking non nécessaire.`)
+    console.log(`No file exceeds the threshold (150 lines). Chunking not needed.`)
   } else {
-    console.log(`\n✓ ${chunked} fichier(s) chunkés → .codemod/chunks/`)
-    console.log('💡 Dis à ton agent : "Lis .codemod/chunks/ avant de modifier un gros fichier"')
+    console.log(`\n✓ ${chunked} file(s) chunked - .codemod/chunks/`)
+    console.log('💡 Tell your agent: "Read .codemod/chunks/ before modifying a large file"')
   }
 }
 
@@ -263,7 +263,7 @@ async function cmdEnrich(): Promise<void> {
 Usage: aidoc-kit enrich [options]
 
   --provider     openai | anthropic | gemini | groq | mistral | ollama
-                 (auto-deduced from --model when omitted: claude-* => anthropic, etc.)
+                 (auto-deduced from --model when omitted: claude-* - anthropic, etc.)
   --model        Model name (auto-resolved via provider API when omitted)
   --host         Ollama base URL (default: http://localhost:11434)
   --path <dir>   Root directory (default: .)
@@ -292,14 +292,14 @@ Or set them in aidoc.config.ts:
   } else if (userModel) {
     const inferred = inferProvider(userModel)
     if (!inferred) {
-      console.error(`Provider inconnu pour le modele "${userModel}".`)
-      console.error('Passe --provider openai|anthropic|gemini|groq|mistral|ollama')
+      console.error(`Unknown provider for model "${userModel}".`)
+      console.error('Pass --provider openai|anthropic|gemini|groq|mistral|ollama')
       process.exit(1)
     }
     provider = inferred
-    console.log(`Provider infere depuis le modele : ${provider}`)
+    console.log(`Provider inferred from model: ${provider}`)
   } else {
-    console.error('Provider non determine. Passe --provider ou --model avec un nom reconnu (claude-*, gpt-*, gemini-*).')
+    console.error('Provider not set. Pass --provider or --model with a recognized name (claude-*, gpt-*, gemini-*).')
     process.exit(1)
   }
 
@@ -312,23 +312,38 @@ Or set them in aidoc.config.ts:
 
   if (!apiKey && provider !== 'ollama') {
     const envNames = ENV_KEY_NAMES[provider]
-    console.error(`Cle API manquante pour le provider "${provider}".`)
-    console.error(`Exporte la variable dans ton shell :`)
-    envNames.forEach(k => console.error(`  export ${k}=ta-cle`))
-    console.error(`Ou ajoute-la dans aidoc.config.ts :`)
-    console.error(`  enrich: { provider: '${provider}', key: process.env.${envNames[0] ?? 'API_KEY'} }`)
+    const primaryEnv = envNames[0] ?? 'API_KEY'
+    console.error(`Missing API key for provider "${provider}".`)
+    console.error()
+    console.error(`To fix this, choose one of the following options:`)
+    console.error()
+    console.error(`  1. Export in your shell (fastest):`)
+    console.error(`     export ${primaryEnv}=your-key`)
+    console.error(`     npx aidoc-kit enrich`)
+    console.error()
+    console.error(`  2. Load your .env first:`)
+    console.error(`     source .env && npx aidoc-kit enrich`)
+    console.error()
+    console.error(`  3. Use dotenv-cli:`)
+    console.error(`     npx dotenv -e .env.local -- aidoc-kit enrich`)
+    console.error()
+    console.error(`  4. Set it in aidoc.config.ts:`)
+    console.error(`     enrich: { provider: '${provider}', key: process.env.${primaryEnv} }`)
+    console.error()
+    console.error(`aidoc-kit never reads .env files directly — this is intentional.`)
+    console.error(`Docs: https://github.com/Clemsrec/aidoc-kit#setting-up-your-api-key`)
     process.exit(1)
   }
 
-  if (matchedEnvVar) console.log(`Cle lue depuis $${matchedEnvVar}`)
+  if (matchedEnvVar) console.log(`Key read from $${matchedEnvVar}`)
 
   const host = getFlag('--host') ?? config.enrich?.host
 
   // Resolve model dynamically (queries provider API when none specified)
   const model = await resolveModel(provider, apiKey ?? '', userModel)
 
-  console.log(`\naidoc-kit enrich → ${projectRoot}`)
-  console.log(`Provider : ${provider} / Modèle : ${model}${dry ? ' (dry-run)' : ''}\n`)
+  console.log(`\naidoc-kit enrich - ${projectRoot}`)
+  console.log(`Provider: ${provider} / Model: ${model}${dry ? ' (dry-run)' : ''}\n`)
 
   const allFiles = walkDir(projectRoot)
   const reverseMap = buildReverseImportMap(allFiles, projectRoot)
@@ -348,16 +363,16 @@ Or set them in aidoc.config.ts:
   })
 
   if (toEnrich.length === 0) {
-    console.log('Aucun fichier avec un bloc @ai-context généré trouvé.')
-    console.log('Lance `npx aidoc-kit scan --write` d’abord.')
+    console.log('No files with a generated @ai-context block found.')
+    console.log('Run `npx aidoc-kit scan --write` first.')
     return
   }
 
-  console.log(`${toEnrich.length} fichier(s) à enrichir :\n`)
+  console.log(`${toEnrich.length} file(s) to enrich:\n`)
   toEnrich.forEach(f => console.log(`  - ${relative(projectRoot, f)}`))
 
   if (dry) {
-    console.log('\n[dry-run] Aucune modification écrite.')
+    console.log('\n[dry-run] No files modified.')
     return
   }
 
@@ -382,7 +397,7 @@ Or set them in aidoc.config.ts:
       const description = await callLLM(prompt, { provider, model, apiKey, host, dryRun: false })
 
       if (!description) {
-        console.log(`  ⚠️  ${rel} — réponse vide, bloc original conservé`)
+        console.log(`  ⚠️  ${rel} — empty response, original block kept`)
         failed++
         continue
       }
@@ -400,7 +415,7 @@ Or set them in aidoc.config.ts:
         console.log(`  ✓ ${rel}`)
         enriched++
       } else {
-        console.log(`  — ${rel} (aucun changement)`)
+        console.log(`  — ${rel} (no change)`)
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
@@ -409,7 +424,7 @@ Or set them in aidoc.config.ts:
     }
   }
 
-  console.log(`\n✓ ${enriched} fichier(s) enrichi(s)${failed > 0 ? `, ${failed} échec(s)` : ''}`)
+  console.log(`\n✓ ${enriched} file(s) enriched${failed > 0 ? `, ${failed} failure(s)` : ''}`)
 }
 
 // ─── help ──────────────────────────────────────────────────────────────────
@@ -418,38 +433,38 @@ function printHelp(): void {
   console.log(`
 aidoc-kit — AI-native documentation toolkit
 
-Commandes :
-  init    Détecter la stack du projet et générer aidoc.config.ts
-          --path <dir>   Dossier racine (défaut: .)
+Commands:
+  init    Detect project stack and generate aidoc.config.ts
+          --path <dir>   Root directory (default: .)
 
-  scan    Scanner un projet et construire la knowledge base
-          --path <dir>   Dossier racine (défaut: .)
-          --write        Écrire les blocs @ai-* manquants (confirmation interactive)
-          --yes, -y      Passer la confirmation (CI, pipe, non-interactif)
-          --dry          Afficher les blocs générés sans modifier les fichiers
+  scan    Scan a project and build the knowledge base
+          --path <dir>   Root directory (default: .)
+          --write        Write missing @ai-* blocks (interactive confirmation)
+          --yes, -y      Skip confirmation (CI, pipe, non-interactive)
+          --dry          Preview generated blocks without modifying files
 
-  chunk   Résumer les gros fichiers (≥150 lignes) dans .codemod/chunks/
-          --path <dir>   Dossier racine (défaut: .)
+  chunk   Summarize large files (≥150 lines) into .codemod/chunks/
+          --path <dir>   Root directory (default: .)
 
-  enrich  Enrichir les blocs @ai-context avec un LLM
+  enrich  Enrich @ai-context blocks with an LLM
           --provider     openai | anthropic | gemini | groq | mistral | ollama
-                         (auto-déduit depuis --model si absent)
-          --model        Modèle (auto-résolu via API provider si absent)
-          --host         Hôte Ollama (défaut: http://localhost:11434)
-          --path <dir>   Dossier racine (défaut: .)
-          --dry          Lister les fichiers sans modifier
-          Clés API : ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY...
+                         (auto-inferred from --model when omitted)
+          --model        Model name (auto-resolved via provider API when omitted)
+          --host         Ollama base URL (default: http://localhost:11434)
+          --path <dir>   Root directory (default: .)
+          --dry          List files without modifying
+          API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY...
 
-  run     Appliquer les règles de transformation
-          --path <dir>   Dossier racine (défaut: .)
-          --dry          Afficher les changements sans modifier les fichiers
+  run     Apply transformation rules
+          --path <dir>   Root directory (default: .)
+          --dry          Preview changes without modifying files
 
-  fix     Corriger les blocs @ai-* générés par d'anciennes versions
-    arrows  Remplacer le caractère → (U+2192) par => (Turbopack compat)
+  fix     Fix @ai-* blocks generated by older versions
+    arrows  Replace - (U+2192) character with - (parser compat)
 
-Config :
-  Lance "npx aidoc-kit init" pour générer un aidoc.config.ts adapté à ton projet.
-  Ou crée-le manuellement :
+Config:
+  Run "npx aidoc-kit init" to generate an aidoc.config.ts tailored to your project.
+  Or create it manually:
 
     module.exports = {
       agents: { '@/lib/permissions': 'permissions-expert', 'stripe': 'billing-expert' },
@@ -458,7 +473,7 @@ Config :
       enrich: { provider: 'gemini', model: 'gemini-2.0-flash', key: process.env.GEMINI_API_KEY },
     }
 
-Exemples :
+Examples:
   npx aidoc-kit init
   npx aidoc-kit scan
   npx aidoc-kit scan --path ./src --dry
@@ -466,11 +481,11 @@ Exemples :
   npx aidoc-kit run --dry
   npx aidoc-kit chunk
   npx aidoc-kit chunk --path ./src
-  npx aidoc-kit enrich --provider gemini --model gemini-2.0-flash --key YOUR_KEY
-  npx aidoc-kit enrich --provider openai --model gpt-4o-mini --key sk-...
-  npx aidoc-kit enrich --provider anthropic --model claude-3-5-haiku-20241022 --key sk-ant-...
-  npx aidoc-kit enrich --provider groq --model llama-3.1-8b-instant --key gsk_...
-  npx aidoc-kit enrich --provider mistral --model mistral-small-latest --key ...
+  npx aidoc-kit enrich --provider gemini --model gemini-2.0-flash
+  npx aidoc-kit enrich --provider openai --model gpt-4o-mini
+  npx aidoc-kit enrich --provider anthropic --model claude-3-5-haiku-20241022
+  npx aidoc-kit enrich --provider groq --model llama-3.1-8b-instant
+  npx aidoc-kit enrich --provider mistral --model mistral-small-latest
   npx aidoc-kit enrich --provider ollama --model llama3.2
   npx aidoc-kit enrich --dry
   npx aidoc-kit fix arrows
@@ -485,8 +500,8 @@ switch (command) {
       console.log(`
 Usage: aidoc-kit init [options]
 
-  --path <dir>   Dossier racine (défaut: .)
-  -h, --help     Afficher cette aide
+  --path <dir>   Root directory (default: .)
+  -h, --help     Show this help
 `)
     } else {
       runInit(resolve(getFlag('--path') ?? '.'))
@@ -519,7 +534,7 @@ Usage: aidoc-kit init [options]
       const projectRoot = resolve(getFlag('--path') ?? '.')
       fixArrows(projectRoot)
     } else {
-      console.log(`Sous-commande fix inconnue. Commandes disponibles : arrows`)
+      console.log(`Unknown fix subcommand. Available: arrows`)
     }
     break
   }

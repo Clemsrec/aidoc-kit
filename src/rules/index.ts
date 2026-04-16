@@ -12,7 +12,7 @@
  * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
- * => src/cli.ts
+ * - src/cli.ts
  *
  * @ai-validate
  * npm run typecheck

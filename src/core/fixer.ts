@@ -12,7 +12,7 @@
  * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
- * => src/cli.ts
+ * - src/cli.ts
  *
  * @ai-validate
  * npm run typecheck
@@ -23,7 +23,7 @@ import { walkDir } from './scanner'
 
 /**
  * Replaces legacy arrow characters in @ai-* blocks across the project:
- * - Unicode arrow \u2192 (→) — injected by aidoc-kit < 0.3.1, crashes Turbopack
+ * - Unicode arrow \u2192 (-) — injected by aidoc-kit < 0.3.1, crashes Turbopack
  * - ASCII arrow => — injected by aidoc-kit 0.3.1-1.0.2, crashes SWC in .tsx (JSX >)
  * Both are replaced with a plain dash (-), safe for all parsers.
  *
@@ -39,7 +39,7 @@ export function fixArrows(rootDir: string): void {
     const content = readFileSync(file, 'utf-8')
     // Match either form, but only on @ai-cascade lines inside JSDoc blocks
     const hasUnicode = content.includes('\u2192')
-    const hasAsciiArrow = / \* => /.test(content)
+    const hasAsciiArrow = / \* - /.test(content)
     if (!hasUnicode && !hasAsciiArrow) continue
 
     // Replace both forms: unicode arrow and ASCII => in JSDoc cascade lines
@@ -52,8 +52,8 @@ export function fixArrows(rootDir: string): void {
   }
 
   if (fixed === 0) {
-    console.log('Aucun caractere fleche detecte dans les fichiers du projet.')
+    console.log('No arrow characters detected in project files.')
   } else {
-    console.log(`\n\u2713 ${fixed} fichier(s) corrige(s)`)
+    console.log(`\n✓ ${fixed} file(s) fixed`)
   }
 }

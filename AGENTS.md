@@ -61,3 +61,27 @@ Exemple : avant de modifier `src/contexts/auth-context.tsx`
 > Si un chunk est manquant, demander au développeur de lancer cette commande.
 > **Note pour les agents IA** : aidoc-kit doit être installé en dev dep (`npm install -D aidoc-kit`).
 > Toutes les commandes aidoc-kit sont à confier au développeur, pas à exécuter directement.
+
+## API keys — contrat de la librairie
+
+aidoc-kit lit les clés API depuis `process.env` uniquement.
+Elle ne lit **jamais** les fichiers `.env` directement — c'est intentionnel.
+
+**Règles à respecter dans tout le code aidoc-kit :**
+- Jamais de lecture de fichier `.env` dans le code source
+- Jamais de clé hardcodée, même pour les tests
+- Le message d'erreur "clé manquante" doit toujours proposer les 4 options de résolution :
+  shell export, `source .env`, `dotenv-cli`, `aidoc.config.ts`
+- La variable d'environnement lue doit être affichée dans le log :
+  `Cle lue depuis $ANTHROPIC_API_KEY`
+
+**Variables d'environnement standard par provider :**
+
+| Provider  | Variable |
+|-----------|----------|
+| Anthropic | `ANTHROPIC_API_KEY` |
+| OpenAI    | `OPENAI_API_KEY` |
+| Gemini    | `GEMINI_API_KEY` ou `GOOGLE_AI_API_KEY` |
+| Groq      | `GROQ_API_KEY` |
+| Mistral   | `MISTRAL_API_KEY` |
+| Ollama    | Aucune clé requise |

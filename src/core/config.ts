@@ -12,7 +12,7 @@
  * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
- * => src/cli.ts
+ * - src/cli.ts
  *
  * @ai-validate
  * npm run typecheck
@@ -58,10 +58,10 @@ export function loadConfig(rootDir: string): AidocConfig {
  * Test whether a workspace-relative file path matches any ignore pattern.
  *
  * Supported pattern forms (no external glob library needed):
- * - `src/generated/`   → prefix match (anything under that directory)
- * - `src/generated/**` → same, with explicit glob syntax
- * - `*.test.ts`        → suffix match (any file ending in .test.ts)
- * - `src/foo/bar.ts`   → exact relative path match
+ * - `src/generated/`   - prefix match (anything under that directory)
+ * - `src/generated/**` - same, with explicit glob syntax
+ * - `*.test.ts`        - suffix match (any file ending in .test.ts)
+ * - `src/foo/bar.ts`   - exact relative path match
  */
 export function isIgnored(relPath: string, patterns: string[]): boolean {
   for (const raw of patterns) {
@@ -69,21 +69,21 @@ export function isIgnored(relPath: string, patterns: string[]): boolean {
     const normalized = relPath.replace(/\\/g, '/')
 
     if (pattern.endsWith('/**')) {
-      // prefix: `src/generated/**` → starts with `src/generated/`
+      // prefix: `src/generated/**` - starts with `src/generated/`
       const prefix = pattern.slice(0, -3)
       if (normalized === prefix || normalized.startsWith(prefix + '/')) return true
     } else if (pattern.startsWith('**/')) {
       // suffix after `**/`
       const suffix = pattern.slice(3)
       if (suffix.startsWith('*')) {
-        // `**/*.test.ts` → `*.test.ts` → ends with `.test.ts`
+        // `**/*.test.ts` - `*.test.ts` - ends with `.test.ts`
         if (normalized.endsWith(suffix.slice(1))) return true
       } else {
-        // `**/foo.ts` → any segment equals `foo.ts`
+        // `**/foo.ts` - any segment equals `foo.ts`
         if (normalized === suffix || normalized.endsWith('/' + suffix)) return true
       }
     } else if (pattern.startsWith('*')) {
-      // `*.test.ts` → ends with `.test.ts`
+      // `*.test.ts` - ends with `.test.ts`
       if (normalized.endsWith(pattern.slice(1))) return true
     } else {
       // exact relative path

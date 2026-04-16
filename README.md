@@ -197,6 +197,56 @@ export default {
 
 > **Privacy note:** Ollama runs entirely on your machine — no code ever leaves your network. This makes it the right choice for client projects or proprietary codebases.
 
+## Setting up your API key
+
+aidoc-kit reads API keys from environment variables. How you load them into your environment is up to you:
+
+### Option 1 — Export in your shell
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+npx aidoc-kit enrich
+```
+
+### Option 2 — Load your .env file first
+```bash
+source .env && npx aidoc-kit enrich
+# or with .env.local:
+source .env.local && npx aidoc-kit enrich
+```
+
+### Option 3 — dotenv-cli (recommended for scripts)
+```bash
+npx dotenv -e .env.local -- aidoc-kit enrich
+```
+
+### Option 4 — aidoc.config.ts (recommended for teams)
+```typescript
+export default {
+  enrich: {
+    provider: 'anthropic',
+    key: process.env.ANTHROPIC_API_KEY,
+  }
+}
+```
+Then run normally — the key is resolved at runtime from your env.
+
+### Environment variables per provider
+
+| Provider  | Environment variable |
+|-----------|---------------------|
+| Anthropic | `ANTHROPIC_API_KEY` |
+| OpenAI    | `OPENAI_API_KEY` |
+| Gemini    | `GOOGLE_AI_API_KEY` or `GEMINI_API_KEY` |
+| Groq      | `GROQ_API_KEY` |
+| Mistral   | `MISTRAL_API_KEY` |
+| Ollama    | No key needed |
+
+> **Why doesn't aidoc-kit read `.env` files automatically?**
+> Managing secrets is your responsibility, not aidoc-kit's.
+> This is intentional — it keeps the library zero-dependency and avoids any risk
+> of accidentally exposing secrets. This is the same approach used by Prisma,
+> Firebase CLI, and Stripe CLI.
+
 ## Large file chunking
 
 AI agents often truncate large files — reading only the first 50-100 lines of a 500-line file. `aidoc-kit chunk` solves this by pre-summarising every file over 150 lines into a structured Markdown file inside `.codemod/chunks/`.

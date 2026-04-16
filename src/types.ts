@@ -12,11 +12,11 @@
  * 3. Si tu n'as pas accès au terminal, signaler la commande à exécuter
  *
  * @ai-cascade
- * => src/core/config.ts
- * => src/rules/index.ts
- * => src/core/scanner.ts
- * => src/core/transformer.ts
- * => src/core/writer.ts
+ * - src/core/config.ts
+ * - src/rules/index.ts
+ * - src/core/scanner.ts
+ * - src/core/transformer.ts
+ * - src/core/writer.ts
  *
  * @ai-validate
  * npm run typecheck
@@ -71,7 +71,7 @@ export interface ScanResult {
 
 export interface AidocConfig {
   /**
-   * Custom import-substring → agent-name mappings.
+   * Custom import-substring - agent-name mappings.
    * Checked before built-in rules.
    * @example { '@/lib/permissions': 'permissions-expert', 'stripe': 'billing-expert' }
    */
