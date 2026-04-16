@@ -1,6 +1,6 @@
 {
   "name": "aidoc-kit",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "AI-native documentation scanner for JS/TS projects — gives AI agents persistent memory across sessions",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
