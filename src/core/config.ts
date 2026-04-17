@@ -18,19 +18,61 @@
  * npm run typecheck
  */
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import type { AidocConfig } from '../types'
+
+// ─── Default ignore patterns ───────────────────────────────────────────────
+
+/**
+ * Patterns always excluded regardless of user config.
+ * Prevents aidoc-kit from auto-documenting its own governance files.
+ */
+export const DEFAULT_IGNORE_PATTERNS: string[] = [
+  'aidoc.config.ts',
+  'aidoc.config.js',
+  'aidoc.config.json',
+]
 
 // ─── Config loader ─────────────────────────────────────────────────────────
 
 /**
- * Load `aidoc.config.js` or `aidoc.config.json` from the project root.
+ * Try to load a TypeScript config file by registering a CJS hook.
+ * Requires `tsx` or `ts-node` to be available in the project's node_modules.
+ * Returns null if no TS runtime is found or if the file fails to parse.
+ */
+function tryLoadTsConfig(tsPath: string): AidocConfig | null {
+  const runtimes = ['tsx/cjs', 'ts-node/register']
+  for (const runtime of runtimes) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require(runtime)
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require(tsPath) as unknown
+      const config = (mod as { default?: AidocConfig })?.default ?? (mod as AidocConfig)
+      return config ?? null
+    } catch {
+      // runtime not installed or config malformed — try next
+    }
+  }
+  return null
+}
+
+/**
+ * Load `aidoc.config.ts`, `aidoc.config.js` or `aidoc.config.json` from the
+ * project root. TypeScript configs are loaded via `tsx` or `ts-node` when
+ * available in the project's node_modules.
  * Returns an empty object if no config file is found or if it fails to parse.
- *
- * TypeScript config (`aidoc.config.ts`) is supported when the CLI is run via
- * `ts-node` or `tsx`; otherwise compile it to `.js` first.
  */
 export function loadConfig(rootDir: string): AidocConfig {
+  // Try TS config first (requires tsx or ts-node in the project's node_modules)
+  const tsCandidate = join(rootDir, 'aidoc.config.ts')
+  if (existsSync(tsCandidate)) {
+    const config = tryLoadTsConfig(tsCandidate)
+    if (config !== null) return config
+    console.warn(`[aidoc-kit] Found ${basename(tsCandidate)} but could not load it (no TS runtime detected).`)
+    console.warn(`[aidoc-kit] Install tsx (npm install -D tsx) or compile to aidoc.config.js first.`)
+  }
+
   const candidates = [
     join(rootDir, 'aidoc.config.js'),
     join(rootDir, 'aidoc.config.json'),

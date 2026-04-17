@@ -2,6 +2,16 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.2.1] — 2026-04-17
+
+### Fixed
+- `loadConfig` supporte désormais `aidoc.config.ts` nativement via `tsx` ou `ts-node` (fallback `.js`/`.json` conservé) — le chemin `init → enrich` fonctionne sans miroir `.js`
+- `enrich` : message final affiné selon l'état réel (déjà enrichi / blocs manuels / rien trouvé) — plus de faux « Run scan --write first » trompeur
+- `enrich` : la sélection des fichiers cibles est désormais restreinte aux blocs marqués `[GENERATED]` / `[GÉNÉRÉ]` — les `@ai-context` écrits manuellement ne sont plus réécrits par le LLM
+- `DEFAULT_IGNORE_PATTERNS` ajouté : `aidoc.config.ts/js/json` sont exclus par défaut des passes `scan` et `enrich` — évite l'auto-documentation en boucle
+
+---
+
 ## [1.2.0] — 2026-04-17
 
 ### Added
