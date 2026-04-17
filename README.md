@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
-> **v1.0.0 stable** — Battle-tested on Next.js 16 projects with 135+ files.
+> **v1.2.0** — Battle-tested on Next.js 16 projects with 135+ files.
 
 ## The problem
 
@@ -408,6 +408,9 @@ Commands:
           --host         Ollama host (default: http://localhost:11434)
           --path <dir>   Project root (default: .)
           --dry          List files without modifying
+
+  agents  Generate .github/copilot/<agent>.md instruction files from @ai-agent tags
+          --path <dir>   Project root (default: .)
 
   run     Apply transformation rules
           --path <dir>   Project root (default: .)

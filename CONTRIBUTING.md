@@ -32,3 +32,18 @@ Open `inferAgent()` in [src/core/transformer.ts](src/core/transformer.ts) and ad
 - Keep PRs focused — one feature or fix per PR
 - Include a short description of what changed and why
 - Make sure `npm run build` passes with no TypeScript errors
+
+## Release checklist
+
+Before bumping the version and publishing, verify every item:
+
+- [ ] `npm run build` passes with no TypeScript errors
+- [ ] `package.json` version bumped (semver)
+- [ ] `CHANGELOG.md` updated — new `## [x.y.z]` section with Added / Changed / Fixed
+- [ ] `README.md` updated:
+  - Version badge in the intro line (`> **vX.Y.Z**`)
+  - CLI reference (`## CLI reference`) reflects any new/changed commands or flags
+  - Tags table (`## Supported @ai-* tags`) reflects any new tags
+- [ ] GitHub release notes written (copy from CHANGELOG, add install snippet)
+- [ ] `git tag vX.Y.Z && git push --tags`
+- [ ] `npm publish`
