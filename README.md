@@ -176,19 +176,21 @@ Any agent that can read a file can consume this directly.
 
 ## Supported `@ai-*` tags
 
-| Tag | Description |
-|-----|-------------|
-| `@ai-agent` | Domain expert responsible for this file |
-| `@ai-agents-related` | Other agents to consult when modifying |
-| `@ai-runtime` | `CLIENT UNIQUEMENT` / `SERVER UNIQUEMENT` / `UNIVERSEL` |
-| `@ai-context` | What this file does and exposes |
-| `@ai-when-reading` | How to consume this file correctly |
-| `@ai-when-modifying` | Rules to follow when editing |
-| `@ai-always` | Invariants that must always be respected |
-| `@ai-never` | Absolute prohibitions |
-| `@ai-pattern` | Correct usage code example |
-| `@ai-cascade` | Files that must be checked after modifying this one |
-| `@ai-validate` | Command to run after modifications |
+| Tag | Description | Required |
+|-----|-------------|----------|
+| `@ai-context` | What this file does and exposes | Always |
+| `@ai-cascade` | Files that must be checked after modifying this one | Always |
+| `@ai-validate` | Command to run after modifications | Always |
+| `@ai-when-modifying` | Rules to follow when editing | Always |
+| `@ai-agent` | Specialist agent type | Recommended |
+| `@ai-agent-hint` | Agent switch suggestion (auto-generated) | Auto |
+| `@ai-runtime` | Execution context (omitted when deductible from 'use client') | Optional |
+| `@ai-enriched` | Enrichment date (set by `enrich` command) | Metadata |
+| `@ai-agents-related` | Other agents to consult when modifying | Optional |
+| `@ai-when-reading` | How to consume this file correctly | Optional |
+| `@ai-always` | Invariants that must always be respected | Optional |
+| `@ai-never` | Absolute prohibitions | Optional |
+| `@ai-pattern` | Correct usage code example | Optional |
 
 ## Runtime auto-detection
 

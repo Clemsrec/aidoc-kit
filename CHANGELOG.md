@@ -2,6 +2,20 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.2.0] — 2026-04-17
+
+### Added
+- `aidoc-kit agents` command stub — generates Copilot agent instruction files from @ai-agent tags (`.github/copilot/<agent>.md`)
+- `@ai-agent-hint` tag — auto-generated after `@ai-agent`, instructs agents to switch to a specialized Copilot agent when relevant
+- Cascade criticality indicator in `@ai-context`: `[HIGH-IMPACT]` (10-19 dependents), `[CRITICAL]` (20+ dependents)
+- DESIGN.md: "Agent Routing" and "@ai-cascade as Architecture Map" sections
+
+### Changed
+- `@ai-runtime` is now omitted when deductible from an explicit `'use client'` / `'use server'` directive
+- README: `@ai-*` tags table updated with Required/Optional column and new tags
+
+---
+
 ## [1.1.0] — 2026-04-16
 
 ### Changed

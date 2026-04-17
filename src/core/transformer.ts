@@ -36,13 +36,29 @@ export function generateAiDocBlock(
     ? cascadeDeps.map(f => ` * - ${f}`).join('\n')
     : ' * (none detected)'
 
+  // @ai-runtime is omitted when deductible from an explicit directive.
+  // 'use client' / 'use server' are visible on the first line — no need to repeat.
+  const head = source.slice(0, 300)
+  const runtimeFromDirective =
+    /^\s*(?:\/\/[^\n]*\n\s*)*['"]use client['"]/.test(head) ||
+    /^\s*(?:\/\/[^\n]*\n\s*)*['"]use server['"]/.test(head)
+  const runtimeSection = runtimeFromDirective ? '' : `\n * @ai-runtime ${runtime}`
+
+  // Criticality indicator based on number of dependents (ASCII only — no Unicode emojis)
+  const cascadeCount = cascadeDeps.length
+  const criticalityNote = cascadeCount >= 20
+    ? `\n * [CRITICAL] ${cascadeCount} dependents. Any change affects the entire application. Discuss with developer before modifying.`
+    : cascadeCount >= 10
+      ? `\n * [HIGH-IMPACT] ${cascadeCount} dependents detected. Prefer small, isolated changes.`
+      : ''
+
   return `/**
  * @ai-agent ${agent}
- * @ai-runtime ${runtime}
+ * @ai-agent-hint If you are not the ${agent} specialist, consider switching to a specialized agent in Copilot Chat. Run \`npx aidoc-kit agents\` to generate agent instruction files.${runtimeSection}
  *
  * @ai-context
  * [GENERATED] This file exports: ${exportList}
- * ${importedIn}
+ * ${importedIn}${criticalityNote}
  *
  * @ai-when-modifying
  * 1. Check cascade files below before modifying

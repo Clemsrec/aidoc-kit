@@ -91,3 +91,40 @@ When aidoc-kit has a VS Code extension:
 - Never hardcode a provider's model list — always fetch live
 - Support projects with zero AI setup via manual mode
 - Degrade gracefully — if API call fails, fall back to prompt-export mode
+
+---
+
+## Agent Routing (VSCode Copilot)
+
+@ai-agent tags are not metadata — they are active routing hints.
+
+When an agent reads a file tagged with @ai-agent, the generated @ai-agent-hint
+instructs it to recommend switching to a specialized Copilot agent if needed.
+
+`npx aidoc-kit agents` generates instruction files for each detected agent type:
+
+```
+.github/
+  copilot/
+    firebase-expert.md   <- Firestore, Firebase Auth, Cloud Functions
+    types-expert.md      <- TypeScript types, Zod schemas, type guards
+    hooks-expert.md      <- React hooks, state management, side effects
+    utils-expert.md      <- Pure utility functions, formatting, normalization
+```
+
+Each file is auto-generated from the @ai-agent tags found in the project.
+Users can customize them after generation.
+
+---
+
+## @ai-cascade as Architecture Map
+
+@ai-cascade serves two purposes:
+1. Regression prevention — check these files after any modification
+2. Architecture mapping — cascade count signals file criticality
+
+Cascade count thresholds:
+- 10-19 dependents -> High-impact, prefer isolated changes
+- 20+   dependents -> Critical file, discuss before modifying
+
+These thresholds are automatically reflected in the generated @ai-context.

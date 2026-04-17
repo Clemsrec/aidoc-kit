@@ -254,7 +254,17 @@ Usage: aidoc-kit chunk [options]
     console.log('💡 Tell your agent: "Read .codemod/chunks/ before modifying a large file"')
   }
 }
+// ─── agents ──────────────────────────────────────────────────────────────
 
+async function cmdAgents(): Promise<void> {
+  // TODO: Scan all files for @ai-agent tags
+  // TODO: Collect unique agent names
+  // TODO: For each agent name, generate a markdown instruction file
+  //       at <out>/<agent-name>.md
+  // TODO: Each file contains: role description, file examples found,
+  //       suggested tasks, and a note to check @ai-cascade before modifying
+  console.log('aidoc-kit agents — not yet implemented. See DESIGN.md.')
+}
 // ─── models ─────────────────────────────────────────────────────────────
 
 async function cmdModels(): Promise<void> {
@@ -472,6 +482,9 @@ Commands:
           --dry          List files without modifying
           API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY...
 
+  agents  Generate Copilot agent instruction files from @ai-agent tags
+          --out <dir>    Output directory (default: .github/copilot)
+
   models  List available models for the configured provider
 
   run     Apply transformation rules
@@ -537,6 +550,12 @@ Usage: aidoc-kit init [options]
     break
   case 'chunk':
     cmdChunk().catch((err: unknown) => {
+      console.error(err)
+      process.exit(1)
+    })
+    break
+  case 'agents':
+    cmdAgents().catch((err: unknown) => {
       console.error(err)
       process.exit(1)
     })
