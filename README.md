@@ -453,3 +453,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Author
 
 Made by [Clément Tournier](https://github.com/Clemsrec)
+
+If aidoc-kit is useful to you, a ⭐ on GitHub helps a lot →
+github.com/Clemsrec/aidoc-kit
