@@ -2,6 +2,13 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.2.2] — 2026-04-30
+
+### Added
+- `scan --watch` : surveille le projet en continu (via `fs.watch` natif Node 18+) et écrit automatiquement les blocs `@ai-*` manquants à chaque changement de fichier, sans confirmation. Débounce 500ms. Arrêt propre sur Ctrl+C.
+
+---
+
 ## [1.2.1] — 2026-04-17
 
 ### Fixed

@@ -18,9 +18,9 @@
  * @ai-validate
  * npm run typecheck
  */
-import { writeFileSync, readFileSync } from 'node:fs'
+import { writeFileSync, readFileSync, watch as fsWatch } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { resolve, relative, join } from 'node:path'
+import { resolve, relative, join, extname } from 'node:path'
 import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
 import { generateAiDocBlock, applyRules } from './core/transformer'
 import { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
@@ -94,32 +94,34 @@ function confirm(message: string): Promise<boolean> {
   })
 }
 
-// ─── scan ──────────────────────────────────────────────────────────────────
+// ─── scan helpers ─────────────────────────────────────────────────────────
 
-async function cmdScan(): Promise<void> {
-  if (hasFlag('--help') || hasFlag('-h')) {
-    console.log(`
-Usage: aidoc-kit scan [options]
+/** Directories to skip when watching for file-system events. */
+const WATCH_SKIP_DIRS = new Set([
+  'node_modules', '.git', 'dist', '.next', 'out', 'build', '.codemod', 'coverage',
+])
+const WATCH_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx'])
 
-  --path <dir>   Root directory (default: .)
-  --write        Write missing @ai-* blocks (interactive confirmation)
-  --yes, -y      Skip confirmation (CI, pipe, non-interactive)
-  --dry          Preview generated blocks without modifying files
-  -h, --help     Show this help
-`)
-    return
-  }
-  const projectRoot = resolve(getFlag('--path') ?? '.')
-  const write = hasFlag('--write')
-  const dry = hasFlag('--dry')
+interface ScanPassOptions {
+  /** Write missing @ai-* blocks. */
+  write: boolean
+  /** Preview only — no files modified. */
+  dry: boolean
+  /** Skip interactive confirmation (watch mode / CI). */
+  skipConfirm: boolean
+}
 
-  const config = loadConfig(projectRoot)
-
-  console.log(`\naidoc-kit scan - ${projectRoot}\n`)
-
+/**
+ * One full scan pass. Extracted so both one-shot and --watch modes share the
+ * same logic without duplication.
+ */
+async function runScanPass(
+  projectRoot: string,
+  config: ReturnType<typeof loadConfig>,
+  opts: ScanPassOptions,
+): Promise<void> {
+  const { write, dry, skipConfirm } = opts
   const result = scanProject(projectRoot)
-
-  // Filter out files matching config.ignore patterns (+ built-in defaults)
   const ignorePatterns = [...DEFAULT_IGNORE_PATTERNS, ...(config.ignore ?? [])]
   const filteredWithoutDocs = ignorePatterns.length > 0
     ? result.filesWithoutDocs.filter(f => !isIgnored(f, ignorePatterns))
@@ -149,13 +151,14 @@ Usage: aidoc-kit scan [options]
       }
       console.log()
     } else {
-      // Ask confirmation before writing
-      const ok = await confirm(
-        `- Write @ai-* blocks in ${filteredWithoutDocs.length} file(s)?`,
-      )
-      if (!ok) {
-        console.log('Cancelled.')
-        return
+      if (!skipConfirm) {
+        const ok = await confirm(
+          `- Write @ai-* blocks in ${filteredWithoutDocs.length} file(s)?`,
+        )
+        if (!ok) {
+          console.log('Cancelled.')
+          return
+        }
       }
       console.log()
       for (const relFile of filteredWithoutDocs) {
@@ -176,6 +179,81 @@ Usage: aidoc-kit scan [options]
     console.log('✓ .codemod/ai-knowledge-base.json updated')
     console.log('✓ AGENTS.md updated')
   }
+}
+
+// ─── scan ──────────────────────────────────────────────────────────────────
+
+async function cmdScan(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit scan [options]
+
+  --path <dir>   Root directory (default: .)
+  --write        Write missing @ai-* blocks (interactive confirmation)
+  --watch        Watch for file changes and auto-write @ai-* blocks (implies --write --yes)
+  --yes, -y      Skip confirmation (CI, pipe, non-interactive)
+  --dry          Preview generated blocks without modifying files
+  -h, --help     Show this help
+`)
+    return
+  }
+
+  const projectRoot = resolve(getFlag('--path') ?? '.')
+  const watchMode = hasFlag('--watch')
+  const write = hasFlag('--write') || watchMode
+  const dry = hasFlag('--dry')
+  const config = loadConfig(projectRoot)
+
+  console.log(`\naidoc-kit scan - ${projectRoot}${watchMode ? ' [watch]' : ''}\n`)
+
+  if (watchMode) {
+    // Initial pass — no confirmation needed
+    await runScanPass(projectRoot, config, { write: true, dry: false, skipConfirm: true })
+
+    console.log('[watch] Watching for file changes... (Ctrl+C to stop)\n')
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    const pendingFiles = new Set<string>()
+
+    let watcher: ReturnType<typeof fsWatch>
+    try {
+      watcher = fsWatch(projectRoot, { recursive: true }, (_event, filename) => {
+        if (!filename) return
+        const rel = filename.toString()
+        // Skip ignored directories (any path segment matches)
+        if (rel.split(/[/\\]/).some((seg: string) => WATCH_SKIP_DIRS.has(seg))) return
+        // Only react to source file extensions
+        if (!WATCH_EXTENSIONS.has(extname(rel))) return
+
+        pendingFiles.add(rel)
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(async () => {
+          const changed = [...pendingFiles].join(', ')
+          pendingFiles.clear()
+          console.log(`\n[watch] ${changed}`)
+          await runScanPass(projectRoot, config, { write: true, dry: false, skipConfirm: true })
+        }, 500)
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[watch] fs.watch failed: ${msg}`)
+      console.error('[watch] Recursive watching requires macOS, Windows, or Linux kernel >= 5.x.')
+      process.exit(1)
+    }
+
+    process.on('SIGINT', () => {
+      watcher.close()
+      console.log('\n[watch] Stopped.')
+      process.exit(0)
+    })
+
+    // Keep the process alive indefinitely
+    await new Promise<never>(() => { /* intentionally never resolves */ })
+    return
+  }
+
+  // ── One-shot mode ──────────────────────────────────────────────────────
+  await runScanPass(projectRoot, config, { write, dry, skipConfirm: false })
 }
 
 // ─── run ───────────────────────────────────────────────────────────────────
@@ -490,6 +568,7 @@ Commands:
   scan    Scan a project and build the knowledge base
           --path <dir>   Root directory (default: .)
           --write        Write missing @ai-* blocks (interactive confirmation)
+          --watch        Watch for file changes and auto-write @ai-* blocks
           --yes, -y      Skip confirmation (CI, pipe, non-interactive)
           --dry          Preview generated blocks without modifying files
 
@@ -533,6 +612,7 @@ Examples:
   npx aidoc-kit scan
   npx aidoc-kit scan --path ./src --dry
   npx aidoc-kit scan --write
+  npx aidoc-kit scan --watch
   npx aidoc-kit run --dry
   npx aidoc-kit chunk
   npx aidoc-kit chunk --path ./src
