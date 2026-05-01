@@ -25,7 +25,7 @@ import type { AiDocBlock, ScanResult } from '../types'
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx'])
 const IGNORED_DIRS = new Set([
-  'node_modules', '.git', 'dist', '.next', 'out', 'build', '.codemod', 'coverage',
+  'node_modules', '.git', 'dist', '.next', '_next', 'out', 'build', '.codemod', 'coverage',
 ])
 
 // ─── Public API ────────────────────────────────────────────────────────────

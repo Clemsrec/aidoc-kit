@@ -2,6 +2,13 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.2.3] — 2026-05-01
+
+### Fixed
+- `_next` (dossier de runtime Next.js) ajouté aux répertoires ignorés par défaut dans `walkDir` et `--watch` — les blocs `@ai-*` ne sont plus écrits dans les artefacts de build Next.js
+
+---
+
 ## [1.2.2] — 2026-04-30
 
 ### Added

@@ -98,7 +98,7 @@ function confirm(message: string): Promise<boolean> {
 
 /** Directories to skip when watching for file-system events. */
 const WATCH_SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', '.next', 'out', 'build', '.codemod', 'coverage',
+  'node_modules', '.git', 'dist', '.next', '_next', 'out', 'build', '.codemod', 'coverage',
 ])
 const WATCH_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx'])
 
