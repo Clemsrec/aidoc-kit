@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
-> **v1.2.0** — Battle-tested on Next.js 16 projects with 135+ files.
+> **v1.2.3** — Battle-tested on Next.js projects with 500+ files.
 
 ## The problem
 
@@ -47,10 +47,13 @@ npx aidoc-kit scan --dry
 # 3. Write blocks to all files (asks confirmation):
 npx aidoc-kit scan --write
 
-# 4. Summarise large files for agents:
+# 4. Keep blocks up to date as you add new files:
+npx aidoc-kit scan --watch
+
+# 5. Summarise large files for agents:
 npx aidoc-kit chunk
 
-# 5. Enrich @ai-context with an LLM (uses the provider detected at init):
+# 6. Enrich @ai-context with an LLM (uses the provider detected at init):
 npx aidoc-kit enrich --dry
 ```
 
@@ -229,7 +232,7 @@ export default {
 }
 ```
 
-Also supported: `aidoc.config.js` (CommonJS `module.exports`) and `aidoc.config.json`.
+`aidoc.config.ts` is loaded natively when `tsx` or `ts-node` is available in your project's `node_modules` (no compile step needed). Falls back to `aidoc.config.js` (CommonJS `module.exports`) or `aidoc.config.json`.
 
 ## AI-powered context enrichment
 
@@ -392,9 +395,14 @@ Tell your AI agent: *"Read `.codemod/chunks/` before modifying any large file."*
 aidoc-kit — AI-native documentation toolkit
 
 Commands:
+  init    Detect project stack and generate aidoc.config.ts
+          --path <dir>   Project root (default: .)
+
   scan    Scan a project and build the knowledge base
           --path <dir>   Project root (default: .)
           --write        Write missing @ai-* blocks (interactive confirmation)
+          --watch        Watch for file changes and auto-write @ai-* blocks
+          --yes, -y      Skip confirmation (CI / non-interactive)
           --dry          Preview generated blocks without writing anything
 
   chunk   Summarise large files (≥150 lines) into .codemod/chunks/*.md
@@ -415,6 +423,8 @@ Commands:
   run     Apply transformation rules
           --path <dir>   Project root (default: .)
           --dry          Preview changes without writing
+
+  fix arrows  Replace legacy arrow characters in @ai-* blocks (SWC compat)
 ```
 
 ## Reverse dependency graph
@@ -441,7 +451,7 @@ aidoc-kit uses only Node.js built-ins + the TypeScript compiler already installe
 
 - [ ] VS Code extension with `@ai-*` tag highlighting and hover docs
 - [ ] MCP server to expose scan/transform as AI agent tools
-- [ ] `--watch` mode (rebuild knowledge base on save)
+- [x] `--watch` mode (rebuild knowledge base on save)
 - [ ] Public rules registry for popular lib migrations (Next.js, Firebase, Stripe)
 - [ ] CI/CD integration to validate `@ai-*` coverage on each PR
 - [ ] HTML visual report of the dependency graph
