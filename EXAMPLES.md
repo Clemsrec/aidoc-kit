@@ -37,13 +37,17 @@ SQLite index with the built-in `node:sqlite`, no extra dependency).
 
 ## Use the graph from an agent
 
-`aidoc-graph.json` sits at the project root. A one-line instruction in your
-agent rules (`.cursorrules`, `CLAUDE.md`, Copilot instructions) is enough:
+`aidoc-graph.json` sits at the project root, and `aidoc-kit index` writes a
+"Code graph" section at the top of `AGENTS.md` with the usage rules and ready
+made queries — tools that follow the [agents.md](https://agents.md) convention
+(Codex, Cursor, Gemini CLI, Zed…) pick it up automatically.
+
+For tools with their own entry file, add a one-line pointer (the `index`
+command lists the ones present in your project that lack it):
 
 ```
-Before modifying a file, check its entry in aidoc-graph.json:
-- criticalityLevel high/critical => read every dependent (edges where to == file) first
-- role server => never import it from client code
+# CLAUDE.md, .cursorrules, .github/copilot-instructions.md, .windsurfrules…
+Read AGENTS.md before modifying anything.
 ```
 
 ## Use the graph from the library

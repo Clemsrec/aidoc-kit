@@ -18,7 +18,7 @@
  * @ai-validate
  * npm run typecheck
  */
-import { writeFileSync, readFileSync, watch as fsWatch } from 'node:fs'
+import { writeFileSync, readFileSync, existsSync, watch as fsWatch } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { resolve, relative, join, extname } from 'node:path'
 import { scanProject, buildReverseImportMap, walkDir } from './core/scanner'
@@ -310,6 +310,40 @@ and Node.js >= 22.5. Produces aidoc-graph.json at the project root.
   }
 
   console.log(`\n✓ ${relative(projectRoot, outPath) || outPath} written`)
+
+  // Refresh AGENTS.md so its code-graph section reflects this index
+  writeAgentsMd(scanProject(projectRoot), projectRoot)
+  console.log('✓ AGENTS.md updated (code graph section)')
+
+  printAgentEntryHints(projectRoot)
+}
+
+/**
+ * AGENTS.md is only useful if each AI tool's own entry file points to it.
+ * List the entry files present in the project that do not reference it yet —
+ * informational only, aidoc-kit never edits these files.
+ */
+function printAgentEntryHints(projectRoot: string): void {
+  const entryFiles = [
+    'CLAUDE.md',
+    '.cursorrules',
+    join('.github', 'copilot-instructions.md'),
+    'GEMINI.md',
+    '.windsurfrules',
+  ]
+  const missing: string[] = []
+  for (const rel of entryFiles) {
+    const abs = join(projectRoot, rel)
+    if (!existsSync(abs)) continue
+    try {
+      if (!/AGENTS\.md|aidoc-graph/.test(readFileSync(abs, 'utf-8'))) missing.push(rel)
+    } catch { /* unreadable — skip */ }
+  }
+  if (missing.length === 0) return
+  console.log(`\nTip: these agent entry files do not mention AGENTS.md yet:`)
+  for (const f of missing) console.log(`  - ${f}`)
+  console.log(`Add one line to each so their agents discover the code graph:`)
+  console.log(`  "Read AGENTS.md before modifying anything."`)
 }
 
 // ─── run ───────────────────────────────────────────────────────────────────
