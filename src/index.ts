@@ -24,3 +24,15 @@ export { writeKnowledgeBase, writeAgentsMd, writeDocBlock } from './core/writer'
 export { loadConfig, isIgnored } from './core/config'
 export { defaultRules, removeConsoleLogs, replaceAnyWithUnknown } from './rules/index'
 export type { AiDocBlock, Rule, ScanResult, KnowledgeBase, AidocConfig } from './types'
+
+// Enriched code graph (CodeGraph integration)
+export { detectCodegraph, codegraphInstallHint } from './codegraph/detect'
+export { runCodegraphIndex, codegraphDbPath } from './codegraph/runner'
+export { loadRawGraph } from './codegraph/loader'
+export { enrichGraph, inferRole, inferTags, computeCriticality } from './enricher/basicEnricher'
+export { writeEnrichedGraph, readEnrichedGraph, GRAPH_FILENAME } from './graph/serializer'
+export { getDependents, getDependencies, getCriticalFiles } from './graph/query'
+export type {
+  RawGraph, RawFile, RawSymbol, RawFileEdge,
+  EnrichedGraph, EnrichedFile, FileRole, CriticalityLevel,
+} from './graph/types'

@@ -55,9 +55,32 @@ npx aidoc-kit chunk
 
 # 6. Enrich @ai-context with an LLM (uses the provider detected at init):
 npx aidoc-kit enrich --dry
+
+# 7. Optional — build the enriched code graph (roles + criticality):
+npm install -D @colbymchenry/codegraph
+npx aidoc-kit index
 ```
 
 That's all a new user needs. `init` reads `package.json`, detects frameworks, auth libraries, databases, AI SDKs and generates a ready-to-use `aidoc.config.ts`.
+
+## Enriched code graph (CodeGraph)
+
+`aidoc-kit index` uses [CodeGraph](https://github.com/colbymchenry/codegraph) as its
+low-level indexing engine (optional peer dependency, indexing only — never part of
+your app's runtime), then layers aidoc-kit's intelligence on top: a `client`/`server`
+role and a 0-100 criticality score per file, written to `aidoc-graph.json` at the
+project root.
+
+```bash
+npm install -D @colbymchenry/codegraph
+npx aidoc-kit index                # full index
+npx aidoc-kit index --incremental  # sync changes since last index
+```
+
+Requires Node.js >= 22.5 (CodeGraph's own requirement). Agents can read
+`aidoc-graph.json` directly, or your tooling can query it through the library API
+(`readEnrichedGraph`, `getDependents`, `getCriticalFiles`).
+See [EXAMPLES.md](EXAMPLES.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## AI Setup
 
@@ -408,6 +431,11 @@ Commands:
   chunk   Summarise large files (≥150 lines) into .codemod/chunks/*.md
           --path <dir>   Project root (default: .)
 
+  index   Build the enriched code graph (aidoc-graph.json) via CodeGraph
+          --path <dir>    Project root (default: .)
+          --incremental   Sync changes since last index instead of a full rebuild
+          Requires: npm install -D @colbymchenry/codegraph (and Node >= 22.5)
+
   models  List available models for the configured provider
 
   enrich  Enrich @ai-context blocks with real LLM-generated descriptions
@@ -434,6 +462,8 @@ One of aidoc-kit's core features is the **reverse import map**: for every file, 
 ## Why zero dependencies?
 
 aidoc-kit uses only Node.js built-ins + the TypeScript compiler already installed in every TypeScript project. No extra packages, no version conflicts, no supply chain risk.
+
+The only exception is opt-in: the `index` command uses `@colbymchenry/codegraph` as its indexing engine. It is an **optional peer dependency** — install it only if you want the enriched graph, and it never becomes part of your application's runtime.
 
 > All generated `@ai-*` blocks are 100% ASCII. No Unicode characters
 > are ever injected into source files — ensuring compatibility with

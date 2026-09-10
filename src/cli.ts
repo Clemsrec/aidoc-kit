@@ -30,6 +30,12 @@ import { runInit } from './core/init'
 import { fixArrows } from './core/fixer'
 import { loadConfig, isIgnored, DEFAULT_IGNORE_PATTERNS } from './core/config'
 import { defaultRules } from './rules/index'
+import { detectCodegraph, codegraphInstallHint } from './codegraph/detect'
+import { runCodegraphIndex } from './codegraph/runner'
+import { loadRawGraph } from './codegraph/loader'
+import { enrichGraph } from './enricher/basicEnricher'
+import { writeEnrichedGraph } from './graph/serializer'
+import { getCriticalFiles } from './graph/query'
 
 // ─── Arg helpers ───────────────────────────────────────────────────────────
 
@@ -98,7 +104,7 @@ function confirm(message: string): Promise<boolean> {
 
 /** Directories to skip when watching for file-system events. */
 const WATCH_SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', '.next', '_next', 'out', 'build', '.codemod', 'coverage',
+  'node_modules', '.git', 'dist', '.next', '_next', 'out', 'build', '.codemod', '.codegraph', 'coverage',
 ])
 const WATCH_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx'])
 
@@ -254,6 +260,56 @@ Usage: aidoc-kit scan [options]
 
   // ── One-shot mode ──────────────────────────────────────────────────────
   await runScanPass(projectRoot, config, { write, dry, skipConfirm: false })
+}
+
+// ─── index ─────────────────────────────────────────────────────────────────
+
+async function cmdIndex(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit index [options]
+
+  --path <dir>    Root directory (default: .)
+  --incremental   Sync changes since last index (codegraph sync) instead of a full rebuild
+  -h, --help      Show this help
+
+Requires @colbymchenry/codegraph as a dev dependency in the target project
+and Node.js >= 22.5. Produces aidoc-graph.json at the project root.
+`)
+    return
+  }
+
+  const projectRoot = resolve(getFlag('--path') ?? '.')
+  const incremental = hasFlag('--incremental')
+
+  console.log(`\naidoc-kit index - ${projectRoot}${incremental ? ' [incremental]' : ''}\n`)
+
+  const install = detectCodegraph(projectRoot)
+  if (!install) {
+    console.error(codegraphInstallHint())
+    process.exit(1)
+  }
+  console.log(`✓ CodeGraph detected${install.version ? ` (v${install.version})` : ''}\n`)
+
+  runCodegraphIndex(projectRoot, install.binPath, { incremental })
+
+  const raw = await loadRawGraph(projectRoot)
+  const enriched = enrichGraph(raw, projectRoot)
+  const outPath = writeEnrichedGraph(enriched, projectRoot)
+
+  const { stats } = enriched
+  console.log(`\n✓ ${stats.files} files, ${stats.edges} file-level edges`)
+  console.log(`✓ Roles: ${stats.client} client / ${stats.server} server / ${stats.universal} universal`)
+
+  const critical = getCriticalFiles(enriched, 'high')
+  if (critical.length > 0) {
+    console.log(`\nHigh-criticality files:`)
+    for (const f of critical.slice(0, 10)) {
+      console.log(`  [${f.criticality}] ${f.file} (${f.inDegree} dependents${f.tags.length > 0 ? `, ${f.tags.join('/')}` : ''})`)
+    }
+  }
+
+  console.log(`\n✓ ${relative(projectRoot, outPath) || outPath} written`)
 }
 
 // ─── run ───────────────────────────────────────────────────────────────────
@@ -575,6 +631,11 @@ Commands:
   chunk   Summarize large files (≥150 lines) into .codemod/chunks/
           --path <dir>   Root directory (default: .)
 
+  index   Build the enriched code graph (aidoc-graph.json) via CodeGraph
+          --path <dir>    Root directory (default: .)
+          --incremental   Sync changes since last index instead of a full rebuild
+          Requires: npm install -D @colbymchenry/codegraph (and Node >= 22.5)
+
   enrich  Enrich @ai-context blocks with an LLM
           --provider     openai | anthropic | gemini | groq | mistral | ollama
                          (auto-inferred from --model when omitted)
@@ -613,6 +674,8 @@ Examples:
   npx aidoc-kit scan --path ./src --dry
   npx aidoc-kit scan --write
   npx aidoc-kit scan --watch
+  npx aidoc-kit index
+  npx aidoc-kit index --incremental
   npx aidoc-kit run --dry
   npx aidoc-kit chunk
   npx aidoc-kit chunk --path ./src
@@ -645,6 +708,12 @@ Usage: aidoc-kit init [options]
   case 'scan':
     cmdScan().catch((err: unknown) => {
       console.error(err)
+      process.exit(1)
+    })
+    break
+  case 'index':
+    cmdIndex().catch((err: unknown) => {
+      console.error(err instanceof Error ? err.message : err)
       process.exit(1)
     })
     break

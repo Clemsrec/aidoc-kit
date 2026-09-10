@@ -1,0 +1,154 @@
+# ARCHITECTURE — aidoc-kit x CodeGraph
+
+## Overview
+
+aidoc-kit combines two complementary analysis layers:
+
+1. **CodeGraph** (`@colbymchenry/codegraph`) — low-level indexing engine.
+   It builds a full knowledge graph of the project (symbols, calls, imports,
+   inheritance) into a local SQLite database: `.codegraph/codegraph.db`.
+2. **aidoc-kit** — intelligence layer. It reads that raw graph, enriches it
+   (client/server roles, criticality, domain tags) and serializes it to a
+   simple, stable format: `aidoc-graph.json`.
+
+CodeGraph is used **for indexing only**, never in the runtime of applications
+that use aidoc-kit. It is an optional peer dependency: without it, every
+other command (`scan`, `chunk`, `enrich`…) works exactly as before.
+
+## Indexing flow
+
+```
+aidoc-kit index [--incremental] [--path <dir>]
+  │
+  ├─ 1. detect.ts   — is CodeGraph installed in node_modules? which version?
+  │                   (otherwise: install instructions, exit 1)
+  │
+  ├─ 2. runner.ts   — spawn the codegraph binary:
+  │                     first run           → codegraph init --yes
+  │                     full rebuild        → codegraph index
+  │                     --incremental       → codegraph sync
+  │                   then verify .codegraph/codegraph.db exists
+  │
+  ├─ 3. loader.ts   — read the DB through node:sqlite (built into
+  │                   Node >= 22.5, zero npm dependency): files, symbols,
+  │                   edges aggregated at file level → RawGraph
+  │
+  ├─ 4. basicEnricher.ts — RawGraph + source reading → EnrichedGraph:
+  │                   client/server/universal role, 0-100 criticality, tags
+  │
+  └─ 5. serializer.ts — write aidoc-graph.json at the project root
+```
+
+## Modules
+
+| Module | Responsibility |
+|---|---|
+| `src/codegraph/detect.ts` | Detect the CodeGraph install (bin + version) |
+| `src/codegraph/runner.ts` | Run `codegraph init/index/sync` (direct spawn, no shell) |
+| `src/codegraph/loader.ts` | SQLite read → `RawGraph` (plain TS types) |
+| `src/enricher/basicEnricher.ts` | Roles, criticality, tags |
+| `src/graph/types.ts` | `RawGraph` / `EnrichedGraph` contracts |
+| `src/graph/serializer.ts` | Read/write `aidoc-graph.json` |
+| `src/graph/query.ts` | Simple queries over the enriched graph |
+
+Each step only depends on the previous step's contract: the loader is the
+only module aware of CodeGraph's SQLite schema, the enricher only knows
+`RawGraph`, consumers only know `EnrichedGraph`.
+
+## `aidoc-graph.json` format
+
+Versioned JSON (`version: 1`), written at the target project root, sorted by
+path for stable git diffs.
+
+```jsonc
+{
+  "version": 1,
+  "generatedAt": "2026-09-10T08:15:00.000Z",
+  "codegraph": { "version": "1.6.0" },
+  "stats": { "files": 21, "edges": 69, "client": 1, "server": 2, "universal": 18 },
+  "files": [
+    {
+      "file": "src/types.ts",
+      "language": "typescript",
+      "role": "universal",            // client | server | universal
+      "roleReason": "no client/server signal",
+      "criticality": 42,              // 0-100
+      "criticalityLevel": "medium",   // low | medium | high | critical
+      "inDegree": 7,                  // files depending on this one
+      "outDegree": 0,
+      "tags": [],                     // api, auth, billing, payment
+      "symbolCount": 6
+    }
+  ],
+  "edges": [
+    { "from": "src/cli.ts", "to": "src/core/scanner.ts", "kind": "imports", "count": 3 }
+  ]
+}
+```
+
+Edges are aggregated at file level (`count` keeps the symbol-level volume).
+Symbol-by-symbol detail stays queryable in `.codegraph/codegraph.db` — no
+point duplicating it in the JSON.
+
+### Role (client/server)
+
+Decreasing priority, same order as the historical `@ai-runtime` detection:
+
+1. Explicit `'use client'` / `'use server'` directive at the top of the file
+2. `.server.ts` / `.client.ts` suffix (Remix convention)
+3. Server path: `app/api/`, `pages/api/`, `server/`, `api/`
+4. Content heuristics: `firebase-admin` import → server, React hooks → client
+5. Otherwise: `universal`
+
+The `roleReason` field records which rule decided.
+
+Known limitation (inherited from `detectRuntime`): content heuristics work on
+raw text — a file that merely *mentions* `useState` or `firebase-admin`
+(regexes, docs) is classified as if it used them.
+
+### Criticality
+
+0-100 score, deterministic, documented in `basicEnricher.ts`:
+
+- fan-in: 6 points per dependent file, capped at 60
+- +15 when the file is an API surface (`app/api/`, `pages/api/`, `api/`)
+- +25 when it belongs to a sensitive domain (auth, billing, payment)
+
+Levels: `critical` >= 80, `high` >= 55, `medium` >= 25, otherwise `low`.
+
+## How agents query the graph
+
+- **Static file**: `aidoc-graph.json` is directly readable by any agent
+  (Claude Code, Cursor, Copilot) — the recommended entry point for "which
+  files are critical?", "who depends on X?".
+- **Library API**: `readEnrichedGraph`, `getDependents`, `getDependencies`,
+  `getCriticalFiles` (see `EXAMPLES.md`).
+- **Symbol-level detail**: through CodeGraph's own CLI or MCP server
+  (`codegraph query`, `codegraph serve --mcp`) — aidoc-kit does not
+  reimplement what already exists underneath.
+
+## Constraints
+
+- **Zero runtime dependency**: `@colbymchenry/codegraph` is an optional
+  `peerDependency`. SQLite reading goes through `node:sqlite` (built-in).
+  Only the `index` command requires Node >= 22.5 — a requirement CodeGraph
+  itself already imposes; the rest of aidoc-kit stays Node 18 compatible.
+- **SQLite schema is not a contract**: CodeGraph's schema is an internal
+  detail of that project. `loader.ts` verifies the expected tables exist
+  (`files`, `nodes`, `edges`) and fails with an actionable message if the
+  schema moves. Any future adaptation happens in that single module.
+
+## Next steps
+
+1. **Refine roles and criticality**: parse the AST instead of content regexes
+   (removes false positives), weigh by distance to entrypoints and transitive
+   impact depth (CodeGraph's `getImpactRadius`).
+2. **Full query API**: symbol-level `getCallers` / `getImpact` / `search`,
+   reading the CodeGraph DB on demand (same patterns as `loader.ts`), exposed
+   in the library and as CLI subcommands (`aidoc-kit graph callers <symbol>`).
+3. **aidoc-kit MCP server** (optional): expose the *enriched* graph over MCP
+   (`get_critical_files`, `get_impact`, `get_role` tools) to complement
+   CodeGraph's raw MCP with the criticality/role layer.
+4. **scan <-> graph loop**: inject the criticality computed here into the
+   `@ai-*` blocks generated by `scan --write` (replaces the plain dependent
+   count currently in `transformer.ts`).

@@ -1,7 +1,8 @@
 node_modules/
 dist/
 .codemod/
+.codegraph/
+aidoc-graph.json
 *.log
 .DS_Store
 .env*
-

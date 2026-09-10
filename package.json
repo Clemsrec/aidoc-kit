@@ -45,11 +45,18 @@
     "url": "https://github.com/Clemsrec/aidoc-kit/issues"
   },
   "devDependencies": {
+    "@colbymchenry/codegraph": "^1.6.0",
     "@types/node": "^25.6.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "typescript": ">=5.0.0"
+    "typescript": ">=5.0.0",
+    "@colbymchenry/codegraph": ">=1.6.0"
+  },
+  "peerDependenciesMeta": {
+    "@colbymchenry/codegraph": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18.0.0"
