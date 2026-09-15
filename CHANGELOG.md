@@ -2,6 +2,14 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.3.3] — 2026-09-15
+
+### Fixed
+- `AGENTS.md` n'est plus écrasé : le contenu généré vit dans un bloc balisé (`<!-- aidoc-kit:generated:start/end -->`), seul ce bloc est réécrit par `scan` et `index`. Le contenu rédigé à la main — avant ou après le bloc — est préservé ; un fichier entièrement généré par une version antérieure est migré vers le format balisé. Auparavant, un `AGENTS.md` manuel était perdu au premier `scan`/`index`
+- Tests unitaires de la fusion (`mergeAgentsMd`)
+
+---
+
 ## [1.3.2] — 2026-09-15
 
 ### Added
