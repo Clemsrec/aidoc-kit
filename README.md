@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
-> **v1.3.3** — Now with an enriched code graph: [CodeGraph](https://github.com/colbymchenry/codegraph) indexing + client/server roles and criticality per file, queryable by any AI agent. Battle-tested on Next.js projects with 500+ files.
+> Now with an enriched code graph: [CodeGraph](https://github.com/colbymchenry/codegraph) indexing + client/server roles and criticality per file, queryable by any AI agent. Battle-tested on Next.js projects with 500+ files. Current version: see the npm badge above and [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 

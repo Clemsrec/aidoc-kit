@@ -2,6 +2,13 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.3.4] — 2026-09-15
+
+### Docs
+- README : bannière graphe enrichi (CodeGraph, rôles, criticité) et roadmap à jour ; le numéro de version n'est plus écrit en dur dans le README — le badge npm et le CHANGELOG font foi. Publication pour que la page npmjs.com serve le README actuel
+
+---
+
 ## [1.3.3] — 2026-09-15
 
 ### Fixed
