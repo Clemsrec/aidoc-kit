@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AiDocBlock, KnowledgeBase, ScanResult } from '../types'
 import { readEnrichedGraph, GRAPH_FILENAME } from '../graph/serializer'
@@ -40,7 +40,25 @@ export function mergeAgentsMd(existing: string | null, generatedBlock: string): 
 }
 
 export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
+  const path = join(projectRoot, 'AGENTS.md')
+  let existing: string | null = null
+  try {
+    existing = readFileSync(path, 'utf-8')
+  } catch {
+    // no existing file
+  }
+  writeFileSync(path, mergeAgentsMd(existing, buildAgentsMdBlock(result, projectRoot)), 'utf-8')
+}
+
+/**
+ * Build the generated AGENTS.md block. Each section is only emitted when it
+ * applies to the project: instructions an agent cannot follow (a missing
+ * chunks folder, @ai-* blocks the project never adopted) are worse than none.
+ */
+export function buildAgentsMdBlock(result: ScanResult, projectRoot: string): string {
   const kb = buildKnowledgeBase(result.docs)
+  const usesDocBlocks = result.docs.length > 0
+  const hasChunks = existsSync(join(projectRoot, '.codemod', 'chunks'))
   const lines: string[] = [
     AGENTS_GENERATED_START,
     '# AGENTS',
@@ -67,8 +85,12 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
       `2. Before modifying a file, check its entry. If \`criticalityLevel\` is \`high\` or`,
       `   \`critical\`, read every dependent file first.`,
       `3. Never import a \`role: server\` file from client code.`,
-      `4. Freshness: if \`generatedAt\` is older than the last commit, the graph may be stale —`,
-      `   ask the developer to run \`npx aidoc-kit index --incremental\` (do not run it yourself).`,
+      `4. **The graph only sees imports, calls and references between source files.** Coupling`,
+      `   through file contents — a JSON or config file naming a path, a script reading a file as`,
+      `   text, a string lookup — is invisible. A low score does not prove a low impact.`,
+      `5. Freshness: the graph reflects the code at \`generatedAt\`, not the current code.`,
+      `   Trust it when \`npx aidoc-kit index --check\` passes (typically in CI); otherwise ask`,
+      `   the developer to run \`npx aidoc-kit index --incremental\` (do not run it yourself).`,
       '',
       `Queries (replace the path):`,
       '',
@@ -86,23 +108,21 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     )
   }
 
-  lines.push(
-    '## Agents and their domains',
-    '',
-  )
-
-  for (const [agent, info] of Object.entries(kb.agents)) {
-    lines.push(`### ${agent}`, '')
-    lines.push(`**Files:** ${info.owns.length}`)
-    info.owns.slice(0, 10).forEach(f => lines.push(`- \`${f}\``))
-    if (info.owns.length > 10) lines.push(`- *(+ ${info.owns.length - 10} more)*`)
-    if (info.consultedBy.length > 0) {
-      lines.push('', `**Consulted by:** ${info.consultedBy.join(', ')}`)
+  if (usesDocBlocks) {
+    lines.push('## Agents and their domains', '')
+    for (const [agent, info] of Object.entries(kb.agents)) {
+      lines.push(`### ${agent}`, '')
+      lines.push(`**Files:** ${info.owns.length}`)
+      info.owns.slice(0, 10).forEach(f => lines.push(`- \`${f}\``))
+      if (info.owns.length > 10) lines.push(`- *(+ ${info.owns.length - 10} more)*`)
+      if (info.consultedBy.length > 0) {
+        lines.push('', `**Consulted by:** ${info.consultedBy.join(', ')}`)
+      }
+      lines.push('')
     }
-    lines.push('')
   }
 
-  if (Object.keys(kb.runtimeMap).length > 0) {
+  if (usesDocBlocks && Object.keys(kb.runtimeMap).length > 0) {
     lines.push('## Runtime Map', '')
     for (const [runtime, files] of Object.entries(kb.runtimeMap)) {
       lines.push(`### ${runtime} (${files.length} files)`, '')
@@ -112,7 +132,7 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     }
   }
 
-  if (result.filesWithoutDocs.length > 0) {
+  if (usesDocBlocks && result.filesWithoutDocs.length > 0) {
     lines.push(
       '## Files without @ai-* documentation',
       '',
@@ -129,33 +149,26 @@ export function writeAgentsMd(result: ScanResult, projectRoot: string): void {
     )
   }
 
-  lines.push(
-    '## Large files — read the chunk before modifying',
-    '',
-    'Files over 150 lines have a structured summary in `.codemod/chunks/`.',
-    'Before modifying a large file, **read the corresponding `.md` file** in that folder.',
-    'Do not try to read the source file in full — use the chunk.',
-    '',
-    'Example: before modifying `src/contexts/auth-context.tsx`',
-    '=> Read `.codemod/chunks/src/contexts/auth-context.tsx.md`',
-    '',
-    '> Chunks are generated and maintained by the developer via `npx aidoc-kit chunk`.',
-    '> If a chunk is missing, ask the developer to run this command.',
-    '> **Note for AI agents**: aidoc-kit must be installed as a dev dep (`npm install -D aidoc-kit`).',
-    '> All aidoc-kit commands should be delegated to the developer, not run directly.',
-    '',
-  )
+  if (hasChunks) {
+    lines.push(
+      '## Large files — read the chunk before modifying',
+      '',
+      'Files over 150 lines have a structured summary in `.codemod/chunks/`.',
+      'Before modifying a large file, **read the corresponding `.md` file** in that folder.',
+      'Do not try to read the source file in full — use the chunk.',
+      '',
+      'Example: before modifying `src/contexts/auth-context.tsx`',
+      '=> Read `.codemod/chunks/src/contexts/auth-context.tsx.md`',
+      '',
+      '> Chunks are generated and maintained by the developer via `npx aidoc-kit chunk`.',
+      '> If a chunk is missing, ask the developer to run this command.',
+      '> All aidoc-kit commands should be delegated to the developer, not run directly.',
+      '',
+    )
+  }
 
   lines.push(AGENTS_GENERATED_END)
-
-  const path = join(projectRoot, 'AGENTS.md')
-  let existing: string | null = null
-  try {
-    existing = readFileSync(path, 'utf-8')
-  } catch {
-    // no existing file
-  }
-  writeFileSync(path, mergeAgentsMd(existing, lines.join('\n')), 'utf-8')
+  return lines.join('\n')
 }
 
 // ─── Prepend doc block to a file ──────────────────────────────────────────

@@ -18,7 +18,7 @@ other command (`scan`, `chunk`, `enrich`…) works exactly as before.
 ## Indexing flow
 
 ```
-aidoc-kit index [--incremental] [--path <dir>]
+aidoc-kit index [--incremental] [--check] [--no-agents-md] [--path <dir>]
   │
   ├─ 1. detect.ts   — is CodeGraph installed in node_modules? which version?
   │                   (otherwise: install instructions, exit 1)
@@ -37,6 +37,7 @@ aidoc-kit index [--incremental] [--path <dir>]
   │                   client/server/universal role, 0-100 criticality, tags
   │
   └─ 5. serializer.ts — write aidoc-graph.json at the project root
+                       (--check: diff.ts compares with the committed file instead)
 ```
 
 ## Modules
@@ -50,6 +51,7 @@ aidoc-kit index [--incremental] [--path <dir>]
 | `src/graph/types.ts` | `RawGraph` / `EnrichedGraph` contracts |
 | `src/graph/serializer.ts` | Read/write `aidoc-graph.json` |
 | `src/graph/query.ts` | Simple queries over the enriched graph |
+| `src/graph/diff.ts` | Compare two graphs (`index --check`) |
 
 Each step only depends on the previous step's contract: the loader is the
 only module aware of CodeGraph's SQLite schema, the enricher only knows
@@ -120,6 +122,34 @@ raw text — a file that merely *mentions* `useState` or `firebase-admin`
 
 Levels: `critical` >= 80, `high` >= 55, `medium` >= 25, otherwise `low`.
 
+### What the graph does not see
+
+Edges come from CodeGraph's AST analysis: imports, calls, references,
+inheritance. Coupling that lives in file *contents* is invisible — a JSON
+file that names a source path, a script that reads a file as text and checks
+for a string, a route resolved from configuration. Such a file can score low
+while a change to it breaks something important. The generated `AGENTS.md`
+states this limit explicitly; project-specific content dependencies belong in
+the project's own agent instructions.
+
+## Freshness
+
+`aidoc-graph.json` describes the code at `generatedAt`. A committed graph that
+no longer matches the code is worse than no graph, because agents trust it.
+
+`aidoc-kit index --check` recomputes the graph (`codegraph sync`, or a full
+build when `.codegraph/` is absent, as in CI) and compares it with the
+committed file through `diffEnrichedGraphs` (`src/graph/diff.ts`). It writes
+nothing and exits 1 on any difference in files, roles, criticality, degrees,
+symbol counts or edges. `generatedAt` is ignored on purpose.
+
+Comparing `generatedAt` with the last commit date was rejected: the graph is
+committed together with the code, so it always predates its own commit, and a
+documentation-only commit would flag an accurate graph as stale.
+
+Tested: a graph built incrementally and one rebuilt from an empty
+`.codegraph/` compare equal.
+
 ## How agents query the graph
 
 - **Static file**: `aidoc-graph.json` is directly readable by any agent
@@ -137,6 +167,11 @@ Levels: `critical` >= 80, `high` >= 55, `medium` >= 25, otherwise `low`.
   `peerDependency`. SQLite reading goes through `node:sqlite` (built-in).
   Only the `index` command requires Node >= 22.5 — a requirement CodeGraph
   itself already imposes; the rest of aidoc-kit stays Node 18 compatible.
+- **Opt-out of agent files**: `--no-agents-md` or `agentsMd: false` stops
+  `scan` and `index` from writing `AGENTS.md`, for repositories whose policy
+  forbids agent instruction files. The generated block only contains sections
+  that apply (no chunk instructions without `.codemod/chunks/`, no `scan --write`
+  advice for projects that do not use `@ai-*` blocks).
 - **SQLite schema is not a contract**: CodeGraph's schema is an internal
   detail of that project. `loader.ts` verifies the expected tables exist
   (`files`, `nodes`, `edges`) and fails with an actionable message if the

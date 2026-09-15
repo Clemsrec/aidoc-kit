@@ -34,8 +34,10 @@ import { detectCodegraph, codegraphInstallHint } from './codegraph/detect'
 import { runCodegraphIndex } from './codegraph/runner'
 import { loadRawGraph } from './codegraph/loader'
 import { enrichGraph } from './enricher/basicEnricher'
-import { writeEnrichedGraph } from './graph/serializer'
+import { writeEnrichedGraph, readEnrichedGraph, GRAPH_FILENAME } from './graph/serializer'
 import { getCriticalFiles } from './graph/query'
+import { diffEnrichedGraphs, isGraphDiffEmpty } from './graph/diff'
+import type { EnrichedGraph } from './graph/types'
 
 // ─── Arg helpers ───────────────────────────────────────────────────────────
 
@@ -181,10 +183,17 @@ async function runScanPass(
 
   if (!dry) {
     writeKnowledgeBase(result, projectRoot)
-    writeAgentsMd(result, projectRoot)
     console.log('✓ .codemod/ai-knowledge-base.json updated')
-    console.log('✓ AGENTS.md updated')
+    if (shouldWriteAgentsMd(config)) {
+      writeAgentsMd(result, projectRoot)
+      console.log('✓ AGENTS.md updated')
+    }
   }
+}
+
+/** `--no-agents-md` or `agentsMd: false` in config — for repositories that must not carry agent files. */
+function shouldWriteAgentsMd(config: ReturnType<typeof loadConfig>): boolean {
+  return !hasFlag('--no-agents-md') && config.agentsMd !== false
 }
 
 // ─── scan ──────────────────────────────────────────────────────────────────
@@ -199,6 +208,7 @@ Usage: aidoc-kit scan [options]
   --watch        Watch for file changes and auto-write @ai-* blocks (implies --write --yes)
   --yes, -y      Skip confirmation (CI, pipe, non-interactive)
   --dry          Preview generated blocks without modifying files
+  --no-agents-md Do not write AGENTS.md (same as agentsMd: false in config)
   -h, --help     Show this help
 `)
     return
@@ -271,6 +281,9 @@ Usage: aidoc-kit index [options]
 
   --path <dir>    Root directory (default: .)
   --incremental   Sync changes since last index (codegraph sync) instead of a full rebuild
+  --check         Recompute the graph and compare it with the committed aidoc-graph.json.
+                  Writes nothing; exits 1 when the graph is stale (use in CI)
+  --no-agents-md  Do not write AGENTS.md (same as agentsMd: false in config)
   -h, --help      Show this help
 
 Requires @colbymchenry/codegraph as a dev dependency in the target project
@@ -280,9 +293,12 @@ and Node.js >= 22.5. Produces aidoc-graph.json at the project root.
   }
 
   const projectRoot = resolve(getFlag('--path') ?? '.')
-  const incremental = hasFlag('--incremental')
+  const check = hasFlag('--check')
+  const incremental = hasFlag('--incremental') || check
+  const config = loadConfig(projectRoot)
 
-  console.log(`\naidoc-kit index - ${projectRoot}${incremental ? ' [incremental]' : ''}\n`)
+  const mode = check ? ' [check]' : incremental ? ' [incremental]' : ''
+  console.log(`\naidoc-kit index - ${projectRoot}${mode}\n`)
 
   const install = detectCodegraph(projectRoot)
   if (!install) {
@@ -295,6 +311,11 @@ and Node.js >= 22.5. Produces aidoc-graph.json at the project root.
 
   const raw = await loadRawGraph(projectRoot)
   const enriched = enrichGraph(raw, projectRoot)
+
+  if (check) {
+    process.exit(reportGraphCheck(projectRoot, enriched))
+  }
+
   const outPath = writeEnrichedGraph(enriched, projectRoot)
 
   const { stats } = enriched
@@ -311,11 +332,44 @@ and Node.js >= 22.5. Produces aidoc-graph.json at the project root.
 
   console.log(`\n✓ ${relative(projectRoot, outPath) || outPath} written`)
 
+  if (!shouldWriteAgentsMd(config)) return
+
   // Refresh AGENTS.md so its code-graph section reflects this index
   writeAgentsMd(scanProject(projectRoot), projectRoot)
   console.log('✓ AGENTS.md updated (code graph section)')
 
   printAgentEntryHints(projectRoot)
+}
+
+/** Compare the committed graph with a fresh one. Returns the process exit code. */
+function reportGraphCheck(projectRoot: string, fresh: EnrichedGraph): number {
+  const committed = readEnrichedGraph(projectRoot)
+  if (!committed) {
+    console.error(`\n✗ No ${GRAPH_FILENAME} to check. Run \`npx aidoc-kit index\` and commit the result.`)
+    return 1
+  }
+
+  const diff = diffEnrichedGraphs(committed, fresh)
+  if (isGraphDiffEmpty(diff)) {
+    console.log(`\n✓ ${GRAPH_FILENAME} matches the current code`)
+    return 0
+  }
+
+  console.error(`\n✗ ${GRAPH_FILENAME} is stale — it no longer matches the current code:`)
+  const list = (label: string, items: string[]) => {
+    if (items.length === 0) return
+    console.error(`  ${label} (${items.length}):`)
+    items.slice(0, 10).forEach(i => console.error(`    ${i}`))
+    if (items.length > 10) console.error(`    ... +${items.length - 10} more`)
+  }
+  list('files added', diff.addedFiles)
+  list('files removed', diff.removedFiles)
+  list('files changed', diff.changedFiles.map(c => `${c.file} (${c.fields.join(', ')})`))
+  if (diff.addedEdges + diff.removedEdges > 0) {
+    console.error(`  edges: +${diff.addedEdges} / -${diff.removedEdges}`)
+  }
+  console.error(`\nRun \`npx aidoc-kit index --incremental\` and commit ${GRAPH_FILENAME}.`)
+  return 1
 }
 
 /**

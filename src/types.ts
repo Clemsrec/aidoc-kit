@@ -89,6 +89,12 @@ export interface AidocConfig {
    */
   validate?: string
   /**
+   * Write AGENTS.md during `scan` and `index`. Set to false for repositories
+   * that must not carry agent instruction files.
+   * @default true
+   */
+  agentsMd?: boolean
+  /**
    * Default LLM provider config for `aidoc-kit enrich`.
    * All fields can be overridden by CLI flags.
    * Never hardcode API keys — use process.env.

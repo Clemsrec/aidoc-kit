@@ -75,11 +75,24 @@ project root.
 npm install -D @colbymchenry/codegraph
 npx aidoc-kit index                # full index
 npx aidoc-kit index --incremental  # sync changes since last index
+npx aidoc-kit index --check        # CI: fail when the committed graph is stale
 ```
 
 Requires Node.js >= 22.5 (CodeGraph's own requirement). Agents can read
 `aidoc-graph.json` directly, or your tooling can query it through the library API
 (`readEnrichedGraph`, `getDependents`, `getCriticalFiles`).
+
+Two things to know before trusting it:
+
+- **It only sees imports, calls and references.** Coupling through file contents — a
+  JSON file naming a path, a script reading a file as text — does not appear. A file
+  with a low score can still be critical.
+- **It describes the code at the time it was generated.** If you commit
+  `aidoc-graph.json`, run `index --check` in CI so a stale graph fails the build instead
+  of misleading agents. If you don't, keep it out of git.
+
+Repositories that must not carry agent instruction files can skip `AGENTS.md` with
+`--no-agents-md` or `agentsMd: false` in the config.
 See [EXAMPLES.md](EXAMPLES.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## AI Setup
@@ -252,6 +265,7 @@ export default {
   },
   ignore: ['src/generated/', '*.test.ts', '*.spec.ts'],
   validate: 'npm run typecheck',
+  agentsMd: true, // set to false to never write AGENTS.md
 }
 ```
 
@@ -434,6 +448,9 @@ Commands:
   index   Build the enriched code graph (aidoc-graph.json) via CodeGraph
           --path <dir>    Project root (default: .)
           --incremental   Sync changes since last index instead of a full rebuild
+          --check         Compare the committed graph with the current code, write
+                          nothing, exit 1 when stale (CI)
+          --no-agents-md  Do not write AGENTS.md
           Requires: npm install -D @colbymchenry/codegraph (and Node >= 22.5)
 
   models  List available models for the configured provider

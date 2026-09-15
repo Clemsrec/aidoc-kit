@@ -35,6 +35,42 @@ High-criticality files:
 Requires Node.js >= 22.5 (CodeGraph's own requirement — aidoc-kit reads its
 SQLite index with the built-in `node:sqlite`, no extra dependency).
 
+## Keep a committed graph honest (CI)
+
+If `aidoc-graph.json` is committed, check it on every push. The check rebuilds
+the index, compares, writes nothing, and fails when the graph is stale:
+
+```yaml
+# .github/workflows/graph.yml
+name: Code graph
+on: [push, pull_request]
+jobs:
+  graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx aidoc-kit index --check
+```
+
+Output when someone forgot to re-index:
+
+```
+✗ aidoc-graph.json is stale — it no longer matches the current code:
+  files changed (2):
+    lib/auth.ts (criticality, inDegree)
+    lib/utils.ts (outDegree, symbolCount)
+  edges: +2 / -0
+
+Run `npx aidoc-kit index --incremental` and commit aidoc-graph.json.
+```
+
+Without such a check, keep `aidoc-graph.json` in `.gitignore` and regenerate it
+locally.
+
 ## Use the graph from an agent
 
 `aidoc-graph.json` sits at the project root, and `aidoc-kit index` writes a
@@ -48,6 +84,17 @@ command lists the ones present in your project that lack it):
 ```
 # CLAUDE.md, .cursorrules, .github/copilot-instructions.md, .windsurfrules…
 Read AGENTS.md before modifying anything.
+```
+
+The graph only sees imports, calls and references. If your project couples
+files through their contents (a JSON manifest that names source files, a
+script asserting that a file contains a given string), say so in those agent
+instructions: these links are not in the graph.
+
+To use the graph without writing any agent file in the repository:
+
+```bash
+npx aidoc-kit index --no-agents-md
 ```
 
 ## Use the graph from the library

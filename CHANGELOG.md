@@ -2,6 +2,22 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.4.0] — 2026-09-15
+
+Corrections issues d'un retour terrain sur un dépôt public : le graphe y induisait en erreur sur trois points.
+
+### Added
+- `index --check` : recalcule le graphe et le compare à `aidoc-graph.json` versionné, sans rien écrire ; code de sortie 1 si le graphe est périmé, avec la liste des fichiers et arêtes qui divergent. Conçu pour la CI (fonctionne sans `.codegraph/` préexistant). La comparaison porte sur le contenu, pas sur les dates : `generatedAt` précède toujours le commit qui contient le graphe
+- `--no-agents-md` (`scan`, `index`) et option de config `agentsMd: false` : n'écrit jamais `AGENTS.md`, pour les dépôts dont la politique interdit les fichiers d'instructions d'agent
+- API librairie : `diffEnrichedGraphs`, `isGraphDiffEmpty`
+
+### Fixed
+- `AGENTS.md` ne contient plus de consignes inapplicables : la section sur `.codemod/chunks/` n'apparaît que si le dossier existe, et le conseil `scan --write` (ainsi que les sections agents et runtime) seulement si le projet utilise des blocs `@ai-*`. Auparavant, un projet utilisant uniquement le graphe recevait l'instruction d'ajouter des commentaires `@ai-*` à tous ses fichiers
+- `AGENTS.md` énonce la limite du graphe : il ne voit que les imports, appels et références ; les dépendances par contenu (JSON citant un fichier, script vérifiant qu'un fichier contient une chaîne) n'y figurent pas, et un score faible ne prouve pas un faible impact
+- La règle de fraîcheur d'`AGENTS.md` ne compare plus `generatedAt` à la date du dernier commit (comparaison toujours fausse) et renvoie vers `index --check`
+
+---
+
 ## [1.3.4] — 2026-09-15
 
 ### Docs

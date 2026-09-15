@@ -32,6 +32,8 @@ export { loadRawGraph } from './codegraph/loader'
 export { enrichGraph, inferRole, inferTags, computeCriticality } from './enricher/basicEnricher'
 export { writeEnrichedGraph, readEnrichedGraph, GRAPH_FILENAME } from './graph/serializer'
 export { getDependents, getDependencies, getCriticalFiles } from './graph/query'
+export { diffEnrichedGraphs, isGraphDiffEmpty } from './graph/diff'
+export type { GraphDiff } from './graph/diff'
 export type {
   RawGraph, RawFile, RawSymbol, RawFileEdge,
   EnrichedGraph, EnrichedFile, FileRole, CriticalityLevel,
