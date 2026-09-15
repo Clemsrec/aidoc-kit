@@ -2,6 +2,20 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.3.0] — 2026-09-15
+
+### Added
+- Commande `index [--incremental]` : intégration de CodeGraph (`@colbymchenry/codegraph`) comme moteur d'indexation bas niveau — `codegraph init/index/sync` puis enrichissement aidoc-kit (rôle `client`/`server`/`universal` avec justification, criticité 0-100, tags api/auth/billing/payment) et écriture de `aidoc-graph.json` à la racine du projet
+- Lecture de l'index SQLite via `node:sqlite` natif (Node >= 22.5, uniquement pour `index`) — zéro dépendance npm runtime conservée ; CodeGraph est une peer dependency **optionnelle**
+- API librairie : `loadRawGraph`, `enrichGraph`, `readEnrichedGraph`, `getDependents`, `getDependencies`, `getCriticalFiles` + types `RawGraph`/`EnrichedGraph`
+- `AGENTS.md` : section « Code graph » auto-générée en tête de fichier (règles d'usage pour agents IA, requêtes ciblées prêtes à copier, contrôle de fraîcheur) ; `index` signale les fichiers d'entrée agents (`CLAUDE.md`, `.cursorrules`…) qui ne référencent pas encore `AGENTS.md`
+- `ARCHITECTURE.md` et `EXAMPLES.md`
+
+### Fixed
+- `.codegraph` ajouté aux répertoires ignorés par `scan` et `--watch`
+
+---
+
 ## [1.2.3] — 2026-05-01
 
 ### Fixed
