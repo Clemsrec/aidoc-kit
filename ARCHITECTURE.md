@@ -96,9 +96,13 @@ Decreasing priority, same order as the historical `@ai-runtime` detection:
 
 1. Explicit `'use client'` / `'use server'` directive at the top of the file
 2. `.server.ts` / `.client.ts` suffix (Remix convention)
-3. Server path: `app/api/`, `pages/api/`, `server/`, `api/`
-4. Content heuristics: `firebase-admin` import → server, React hooks → client
-5. Otherwise: `universal`
+3. App Router entry files (`app/**/page|layout|route|sitemap|robots|opengraph-image…`)
+   without a directive → server (RSC default). Only entry files: a shared
+   component under `app/` can still end up in a client bundle when imported
+   from a `'use client'` boundary, so it is not classified this way.
+4. Server path: `app/api/`, `pages/api/`, `server/`, `api/`
+5. Content heuristics: `firebase-admin` import → server, React hooks → client
+6. Otherwise: `universal`
 
 The `roleReason` field records which rule decided.
 

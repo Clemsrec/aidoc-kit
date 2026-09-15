@@ -2,6 +2,14 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.3.2] — 2026-09-15
+
+### Added
+- `index` : les fichiers d'entrée App Router (`page`, `layout`, `route`, `sitemap`, `robots`, `opengraph-image`…) sans directive `'use client'` sont désormais classés `server` (Server Components par défaut). Volontairement limité aux fichiers d'entrée : un composant partagé sous `app/` peut être embarqué dans un bundle client s'il est importé depuis une frontière `'use client'`
+- Tests unitaires de l'enricher (`inferRole`, criticité) exécutés par `npm test`
+
+---
+
 ## [1.3.1] — 2026-09-15
 
 Contenu identique à la 1.3.0 — le numéro 1.3.0 est resté bloqué en état « staged » sur le registre npm et ne pouvait plus être publié.

@@ -32,6 +32,12 @@ import type {
 
 const SERVER_PATH_PATTERN = /(^|\/)(app\/api|pages\/api|server|api)(\/|$)/
 const CLIENT_HOOKS_PATTERN = /\buseState\b|\buseEffect\b|\buseRef\b|\buseReducer\b|\buseCallback\b|\buseMemo\b/
+// App Router entry files are Server Components by default. Only entry files
+// are safe to classify this way: a shared component under app/ can still be
+// pulled into a client bundle when imported from a 'use client' boundary.
+// error/global-error are excluded — Next.js requires the directive on them.
+const APP_ENTRY_PATTERN =
+  /(^|\/)app\/(?:.*\/)?(page|layout|template|loading|not-found|default|route|sitemap|robots|manifest|opengraph-image|twitter-image|icon|apple-icon)\.[jt]sx?$/
 
 /**
  * Infer the execution role of a file. Explicit directives win, then path
@@ -51,6 +57,8 @@ export function inferRole(relPath: string, source: string): { role: FileRole; re
   const normalized = relPath.replace(/\\/g, '/')
   if (/\.server\.[jt]sx?$/.test(normalized)) return { role: 'server', reason: '.server file suffix' }
   if (/\.client\.[jt]sx?$/.test(normalized)) return { role: 'client', reason: '.client file suffix' }
+  const entryMatch = normalized.match(APP_ENTRY_PATTERN)
+  if (entryMatch) return { role: 'server', reason: `App Router entry ${entryMatch[2]} (RSC default)` }
   const serverMatch = normalized.match(SERVER_PATH_PATTERN)
   if (serverMatch) return { role: 'server', reason: `server path (${serverMatch[2]}/)` }
 
