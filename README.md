@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](tsconfig.json)
 
-> **v1.2.3** — Battle-tested on Next.js projects with 500+ files.
+> **v1.3.3** — Now with an enriched code graph: [CodeGraph](https://github.com/colbymchenry/codegraph) indexing + client/server roles and criticality per file, queryable by any AI agent. Battle-tested on Next.js projects with 500+ files.
 
 ## The problem
 
@@ -480,8 +480,10 @@ The only exception is opt-in: the `index` command uses `@colbymchenry/codegraph`
 ## Roadmap
 
 - [ ] VS Code extension with `@ai-*` tag highlighting and hover docs
-- [ ] MCP server to expose scan/transform as AI agent tools
+- [ ] MCP server to expose the enriched graph (roles, criticality, impact) as AI agent tools
 - [x] `--watch` mode (rebuild knowledge base on save)
+- [x] Enriched code graph via CodeGraph (`aidoc-kit index`) — roles, criticality, `aidoc-graph.json`
+- [ ] Symbol-level query API (`getCallers`, `getImpact`, `search`) on top of the CodeGraph index
 - [ ] Public rules registry for popular lib migrations (Next.js, Firebase, Stripe)
 - [ ] CI/CD integration to validate `@ai-*` coverage on each PR
 - [ ] HTML visual report of the dependency graph
