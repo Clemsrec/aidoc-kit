@@ -2,6 +2,12 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.3.1] — 2026-09-15
+
+Contenu identique à la 1.3.0 — le numéro 1.3.0 est resté bloqué en état « staged » sur le registre npm et ne pouvait plus être publié.
+
+---
+
 ## [1.3.0] — 2026-09-15
 
 ### Added
