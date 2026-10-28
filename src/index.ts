@@ -33,6 +33,9 @@ export { enrichGraph, inferRole, inferTags, computeCriticality } from './enriche
 export { writeEnrichedGraph, readEnrichedGraph, GRAPH_FILENAME } from './graph/serializer'
 export { getDependents, getDependencies, getCriticalFiles } from './graph/query'
 export { diffEnrichedGraphs, isGraphDiffEmpty } from './graph/diff'
+export { renderChunk } from './core/chunker'
+export { runMcpServer, SUPPORTED_PROTOCOL_VERSIONS } from './mcp/server'
+export { callTool, TOOL_DEFINITIONS } from './mcp/tools'
 export type { GraphDiff } from './graph/diff'
 export type {
   RawGraph, RawFile, RawSymbol, RawFileEdge,

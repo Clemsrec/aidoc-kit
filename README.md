@@ -95,6 +95,47 @@ Repositories that must not carry agent instruction files can skip `AGENTS.md` wi
 `--no-agents-md` or `agentsMd: false` in the config.
 See [EXAMPLES.md](EXAMPLES.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## MCP server
+
+`npx aidoc-kit mcp` starts a read-only [MCP](https://modelcontextprotocol.io) server on
+stdio. Agents call tools instead of reading files or running one-liners: one call to
+`context_for_edit` replaces a handful of file reads before an edit.
+
+| Tool | Returns |
+|------|---------|
+| `context_for_edit` | Role, criticality, `@ai-*` rules, dependents ranked by criticality, places that name the file as text (configs, JSON, scripts), large-file summary and validation command, bounded by a token budget (`maxTokens`, default 4000) |
+| `file_info` | Graph entry and `@ai-*` block of one file |
+| `dependents` / `dependencies` | Linked files, most critical first |
+| `critical_files` | Files at or above a criticality level |
+| `read_chunk` | Structured summary of a large file (from `.codemod/chunks/`, or computed on the fly when missing or older than the source) |
+| `graph_status` | Graph date, stats and number of source files modified since |
+
+The textual-reference search covers the graph's blind spot: a JSON file or a script
+naming a path is not an import edge, but renaming the file breaks it.
+
+Setup (run from the project root):
+
+```bash
+# Claude Code
+claude mcp add aidoc-kit -- npx aidoc-kit mcp
+```
+
+```jsonc
+// Cursor: .cursor/mcp.json — VS Code: .vscode/mcp.json (key "servers" instead of "mcpServers")
+{
+  "mcpServers": {
+    "aidoc-kit": { "command": "npx", "args": ["aidoc-kit", "mcp"] }
+  }
+}
+```
+
+Graph tools need `aidoc-graph.json` (`npx aidoc-kit index`); without it the server still
+serves `@ai-*` rules, chunks and textual references, and says what is missing.
+
+Guarantees: no runtime dependency (the protocol is implemented on Node built-ins), no
+network, no file writes, no command execution (the `@ai-validate` command is returned,
+never run), paths confined to the project root (symlinks included), bounded responses.
+
 ## AI Setup
 
 An LLM is optional. `scan`, `chunk` and `index` work from the code alone; only `enrich`
@@ -474,6 +515,9 @@ Commands:
           --path <dir>   Project root (default: .)
           --dry          Preview changes without writing
 
+  mcp     Start a read-only MCP server on stdio for AI agents
+          --path <dir>   Project root (default: .)
+
   fix arrows  Replace legacy arrow characters in @ai-* blocks (SWC compat)
 ```
 
@@ -502,7 +546,7 @@ The only exception is opt-in: the `index` command uses `@colbymchenry/codegraph`
 ## Roadmap
 
 - [ ] VS Code extension with `@ai-*` tag highlighting and hover docs
-- [ ] MCP server to expose the enriched graph (roles, criticality, impact) as AI agent tools
+- [x] MCP server to expose the enriched graph (roles, criticality, impact) as AI agent tools (`aidoc-kit mcp`)
 - [x] `--watch` mode (rebuild knowledge base on save)
 - [x] Enriched code graph via CodeGraph (`aidoc-kit index`) — roles, criticality, `aidoc-graph.json`
 - [ ] Symbol-level query API (`getCallers`, `getImpact`, `search`) on top of the CodeGraph index

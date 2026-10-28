@@ -38,6 +38,7 @@ import { writeEnrichedGraph, readEnrichedGraph, GRAPH_FILENAME } from './graph/s
 import { getCriticalFiles } from './graph/query'
 import { diffEnrichedGraphs, isGraphDiffEmpty } from './graph/diff'
 import type { EnrichedGraph } from './graph/types'
+import { runMcpServer } from './mcp/server'
 
 // ─── Arg helpers ───────────────────────────────────────────────────────────
 
@@ -699,6 +700,40 @@ Or set them in aidoc.config.ts:
   console.log(`\n✓ ${enriched} file(s) enriched${failed > 0 ? `, ${failed} failure(s)` : ''}`)
 }
 
+// ─── mcp ───────────────────────────────────────────────────────────────────
+
+async function cmdMcp(): Promise<void> {
+  if (hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit mcp [options]
+
+Start a read-only MCP server on stdio exposing the code graph, @ai-* blocks and
+large-file summaries to AI agents (Claude Code, Cursor, VS Code, Windsurf...).
+
+  --path <dir>   Project root (default: .)
+  -h, --help     Show this help
+
+Claude Code:  claude mcp add aidoc-kit -- npx aidoc-kit mcp
+`)
+    return
+  }
+
+  // stdout carries JSON-RPC only: any stray log would corrupt the protocol.
+  const toStderr = (...parts: unknown[]): void => { process.stderr.write(parts.map(String).join(' ') + '\n') }
+  console.log = toStderr
+  console.info = toStderr
+  console.warn = toStderr
+
+  const projectRoot = resolve(getFlag('--path') ?? '.')
+  if (!existsSync(projectRoot)) {
+    console.error(`Project root not found: ${projectRoot}`)
+    process.exit(1)
+  }
+  const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')) as { version: string }
+  process.stderr.write(`[aidoc-kit mcp] v${pkg.version} serving ${projectRoot}\n`)
+  await runMcpServer({ projectRoot, version: pkg.version })
+}
+
 // ─── help ──────────────────────────────────────────────────────────────────
 
 function printHelp(): void {
@@ -735,6 +770,9 @@ Commands:
 
   agents  Generate Copilot agent instruction files from @ai-agent tags
           --out <dir>    Output directory (default: .github/copilot)
+
+  mcp     Start a read-only MCP server on stdio for AI agents
+          --path <dir>   Project root (default: .)
 
   models  List available models for the configured provider
 
@@ -775,6 +813,7 @@ Examples:
   npx aidoc-kit enrich --provider ollama --model llama3.2
   npx aidoc-kit enrich --dry
   npx aidoc-kit fix arrows
+  npx aidoc-kit mcp
 `)
 }
 
@@ -817,6 +856,12 @@ Usage: aidoc-kit init [options]
   case 'agents':
     cmdAgents().catch((err: unknown) => {
       console.error(err)
+      process.exit(1)
+    })
+    break
+  case 'mcp':
+    cmdMcp().catch((err: unknown) => {
+      console.error(err instanceof Error ? err.message : err)
       process.exit(1)
     })
     break

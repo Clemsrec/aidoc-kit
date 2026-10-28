@@ -2,6 +2,17 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.5.0] — 2026-10-28
+
+### Added
+- `aidoc-kit mcp` : serveur MCP en lecture seule sur stdio, utilisable depuis Claude Code, Cursor, VS Code ou Windsurf. Outils : `context_for_edit` (rôle, criticité, règles `@ai-*`, dépendants classés, références textuelles, résumé de gros fichier et commande de validation, borné par un budget de tokens), `file_info`, `dependents`, `dependencies`, `critical_files`, `read_chunk`, `graph_status`
+- Recherche des références textuelles d'un fichier (JSON, configs, scripts) : le couplage par contenu, invisible dans le graphe d'imports
+- Protocole implémenté sur les modules Node natifs : aucune dépendance d'exécution ajoutée. Chemins confinés à la racine du projet (liens symboliques compris), entrées validées, réponses plafonnées, aucune écriture ni exécution de commande
+- API librairie : `runMcpServer`, `callTool`, `TOOL_DEFINITIONS`, `renderChunk`
+- `AGENTS.md` signale l'outil `context_for_edit` quand le serveur MCP est connecté
+
+---
+
 ## [1.4.0] — 2026-09-15
 
 Corrections issues d'un retour terrain sur un dépôt public : le graphe y induisait en erreur sur trois points.
