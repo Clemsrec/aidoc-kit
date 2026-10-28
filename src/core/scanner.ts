@@ -193,15 +193,17 @@ export function walkDir(dir: string): string[] {
 
 // ─── Comment parsers ───────────────────────────────────────────────────────
 
-/** Extract single-line tag value: `@tag Some text` */
+/** Extract a tag value, joined on one line: `@tag Some text` or the lines below the tag */
 function extractTag(comment: string, tag: string): string {
-  const match = comment.match(new RegExp(`@${tag}\\s+([^\\n@*][^\\n]*)`, ''))
-  return match?.[1]?.trim() ?? ''
+  return extractTagLines(comment, tag).join(' ')
 }
 
-/** Extract multi-line tag content (until next @ or end of block) */
+/**
+ * Extract multi-line tag content (until the next tag or end of block). The tag must
+ * start a JSDoc line: a mention inside another tag ("run @ai-validate") is not a tag.
+ */
 function extractTagLines(comment: string, tag: string): string[] {
-  const match = comment.match(new RegExp(`@${tag}([\\s\\S]*?)(?=\\s*\\*\\s*@|\\*\\/)`))
+  const match = comment.match(new RegExp(`^[ \\t]*\\*?[ \\t]*@${tag}(?![\\w-])([\\s\\S]*?)(?=^[ \\t]*\\*?[ \\t]*@|\\*\\/)`, 'm'))
   if (!match) return []
   return match[1]
     .split('\n')

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { ToolInputError, callTool, findTextReferences, readTagValue, resolveProjectPath } from './tools'
+import { ToolInputError, callTool, findTextReferences, resolveProjectPath } from './tools'
 import type { EnrichedFile, EnrichedGraph } from '../graph/types'
 
 function file(path: string, overrides: Partial<EnrichedFile> = {}): EnrichedFile {
@@ -124,23 +124,4 @@ test('mcp tools: critical_files and dependents rank by criticality', () => {
   const root = fixture()
   assert.match(callTool(root, 'critical_files', {}), /`src\/lib\/auth\.ts` — critical \(80\), server, 1 dependent\(s\), auth/)
   assert.match(callTool(root, 'dependencies', { path: 'src/app/page.tsx' }), /`src\/lib\/auth\.ts` — critical/)
-})
-
-test('mcp tools: readTagValue ignores mentions of a tag inside another tag', () => {
-  const source = [
-    '/**',
-    ' * @ai-context',
-    ' * Exports a, b',
-    ' * Imported by: src/cli.ts',
-    ' *',
-    ' * @ai-when-modifying',
-    ' * 1. Ask the developer to run @ai-validate',
-    ' *',
-    ' * @ai-validate',
-    ' * npm run typecheck',
-    ' */',
-  ].join('\n')
-  assert.equal(readTagValue(source, 'ai-validate'), 'npm run typecheck')
-  assert.equal(readTagValue(source, 'ai-context'), 'Exports a, b Imported by: src/cli.ts')
-  assert.equal(readTagValue('export const a = 1', 'ai-validate'), '')
 })

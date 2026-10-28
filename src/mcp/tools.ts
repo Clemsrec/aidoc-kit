@@ -198,23 +198,6 @@ function describeEntry(entry: EnrichedFile): string[] {
   ]
 }
 
-/**
- * Value of a tag anchored at the start of a JSDoc line. The scanner's own
- * extractor also matches mentions inside other tags ("lancer @ai-validate"),
- * so tags whose value matters verbatim are re-read here.
- */
-export function readTagValue(source: string, tag: string): string {
-  const block = source.match(/\/\*\*[\s\S]*?\*\//)?.[0]
-  if (!block || !block.includes('@ai-')) return ''
-  const match = block.match(new RegExp(`^[ \\t]*\\*?[ \\t]*@${tag}\\b([\\s\\S]*?)(?=^[ \\t]*\\*?[ \\t]*@ai-|\\*\\/)`, 'm'))
-  if (!match) return ''
-  return match[1]
-    .split('\n')
-    .map(l => l.replace(/^\s*\*\s?/, '').trim())
-    .filter(Boolean)
-    .join(' ')
-}
-
 /** The scanner keeps the list "- " prefixes of multi-line tag values. */
 function cleanTagValue(value: string): string {
   return value.replace(/^-\s+/, '').replace(/\s+/g, ' ').trim()
@@ -227,14 +210,11 @@ function describeAiDocs(abs: string, projectRoot: string): string[] {
   const lines: string[] = []
   if (docs.agent) lines.push(`- Agent: ${docs.agent}${docs.related.length > 0 ? ` (related: ${docs.related.join(', ')})` : ''}`)
   if (docs.runtime) lines.push(`- Runtime: ${docs.runtime}`)
-  const source = readFileSync(abs, 'utf-8')
-  const context = readTagValue(source, 'ai-context')
-  const validate = readTagValue(source, 'ai-validate')
-  if (context) lines.push(`- Context: ${context}`)
+  if (docs.context) lines.push(`- Context: ${docs.context}`)
   if (docs.whenModifying.length > 0) lines.push('- When modifying:', ...list(docs.whenModifying))
   if (docs.neverDo.length > 0) lines.push('- Never:', ...list(docs.neverDo))
   if (docs.cascade.length > 0) lines.push('- Cascade (check after editing):', ...list(docs.cascade))
-  if (validate) lines.push(`- Validate with: \`${validate}\``)
+  if (docs.validate) lines.push(`- Validate with: \`${docs.validate}\``)
   return lines
 }
 

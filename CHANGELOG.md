@@ -11,6 +11,10 @@ All notable changes to aidoc-kit are documented in this file.
 - API librairie : `runMcpServer`, `callTool`, `TOOL_DEFINITIONS`, `renderChunk`
 - `AGENTS.md` signale l'outil `context_for_edit` quand le serveur MCP est connecté
 
+### Fixed
+- Lecture des blocs `@ai-*` : une balise n'est reconnue qu'en début de ligne JSDoc. Auparavant, la mention « lancer @ai-validate » dans `@ai-when-modifying` était prise pour la balise : la commande de validation enregistrée dans `.codemod/ai-knowledge-base.json` était la ligne « 3. Si tu n'as pas accès au terminal… » au lieu de `npm run typecheck`
+- `@ai-context` et `@ai-validate` écrits sous la balise (format généré par `scan --write`) sont lus en entier, sans le préfixe `* ` ; `@ai-agent` ne déborde plus sur `@ai-agent-hint`
+
 ---
 
 ## [1.4.0] — 2026-09-15
