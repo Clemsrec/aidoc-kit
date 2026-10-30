@@ -136,6 +136,29 @@ Guarantees: no runtime dependency (the protocol is implemented on Node built-ins
 network, no file writes, no command execution (the `@ai-validate` command is returned,
 never run), paths confined to the project root (symlinks included), bounded responses.
 
+## Measured cost
+
+Does aidoc-kit make AI agents cheaper? On a 145-file Next.js project, **no**. `bench/`
+runs Claude Code (Sonnet) on 6 verified tasks, 3 times each, with and without aidoc-kit:
+
+| Setup | Cost per session vs. without aidoc-kit | Tasks passed |
+|-------|----------------------------------------|--------------|
+| 1.5 blocks, AGENTS.md imported in CLAUDE.md | +29 % | 89 % (vs. 83 %) |
+| 1.5 blocks + MCP server | +21 % | 83 % |
+| 1.6 compact blocks, AGENTS.md imported | +25 % | 83 % |
+| 1.6 compact blocks, pointer to AGENTS.md | +35 % | 89 % |
+
+At this size a text search answers the agent's questions in one call: it never called
+the MCP server, and the context aidoc-kit adds (AGENTS.md, `@ai-*` blocks) costs more
+than it saves. Gains, if any, are expected on much larger codebases, which have not been
+measured yet. Re-run it on your machine:
+
+```bash
+node bench/prepare.mjs /tmp/aidoc-bench
+node bench/run.mjs /tmp/aidoc-bench --reps 3
+node bench/analyze.mjs /tmp/aidoc-bench
+```
+
 ## AI Setup
 
 An LLM is optional. `scan`, `chunk` and `index` work from the code alone; only `enrich`
@@ -215,6 +238,12 @@ Always read AGENTS.md and .codemod/ai-knowledge-base.json
 before suggesting changes to any file.
 ```
 
+**Claude Code:** Claude Code does not read AGENTS.md on its own. Importing it from
+CLAUDE.md (`@AGENTS.md`) loads it into every session (about 2,000 tokens on a
+145-file project); a one-line pointer ("read AGENTS.md before modifying code")
+makes the agent read it before each change instead. Both cost more than they save on
+a project of that size: see [Measured cost](#measured-cost) before choosing.
+
 **Claude Projects:**
 Add AGENTS.md content to the project instructions.
 
@@ -236,23 +265,24 @@ Any agent that can read a file can consume this directly.
 /**
  * @ai-agent auth-expert
  * @ai-runtime CLIENT UNIQUEMENT
- *
- * @ai-context
- * [GÉNÉRÉ] Ce fichier exporte : AuthProvider, useAuthContext
- * Importé dans : src/app/layout.tsx, src/hooks/use-auth.ts
- *
- * @ai-when-modifying
- * 1. Vérifier les fichiers en cascade ci-dessous
- * 2. Lancer @ai-validate après toute modification
- *
- * @ai-cascade
+ * @ai-context [GENERATED] This file exports: AuthProvider, useAuthContext
+ * @ai-cascade 2 dependents:
+ * - src/app/layout.tsx
  * - src/hooks/use-auth.ts
- * - src/lib/types.ts
- *
- * @ai-validate
- * npm run typecheck
+ * @ai-validate npm run typecheck
  */
 ```
+
+Agents re-read this block every time they open the file, so it only holds what is
+specific to the file. Rules common to every file are written once in `AGENTS.md`.
+`@ai-cascade` lists at most 5 dependents, most depended-on first; the full list is in
+`.codemod/ai-knowledge-base.json`, `aidoc-graph.json` and the MCP server.
+`@ai-runtime` is omitted for universal files and when a `'use client'` / `'use server'`
+directive already says it.
+
+Blocks written by aidoc-kit < 1.6 were about three times longer. Convert them with
+`npx aidoc-kit fix blocks` (preview with `--dry`). Hand-edited blocks are left as is,
+and contexts enriched by `enrich` are kept.
 
 ### At project root
 
@@ -519,6 +549,8 @@ Commands:
           --path <dir>   Project root (default: .)
 
   fix arrows  Replace legacy arrow characters in @ai-* blocks (SWC compat)
+  fix blocks  Rewrite blocks of aidoc-kit < 1.6 in the compact format
+              --dry        Preview without writing
 ```
 
 ## Reverse dependency graph

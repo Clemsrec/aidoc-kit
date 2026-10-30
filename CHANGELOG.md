@@ -2,6 +2,25 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.6.0] — 2026-10-30
+
+Suite au benchmark de la 1.5.0 : sur un projet Next.js de 145 fichiers, les blocs `@ai-*` faisaient plus que doubler le volume du code et rendaient les sessions Claude Code plus chères, sans gain de réussite.
+
+### Changed
+- Blocs `@ai-*` compacts : plus de `@ai-agent-hint`, plus de consignes génériques `@ai-when-modifying` (écrites une seule fois dans `AGENTS.md`), plus de liste « Imported by » en double, `@ai-runtime` omis pour les fichiers universels, chaque balise sur une ligne. `@ai-cascade` liste au plus 5 dépendants, les plus critiques d'abord (criticité du graphe, sinon nombre d'importeurs), suivis du nombre restant. Sur le projet du benchmark : 100 ko de blocs ramenés à 30 ko
+- `.codemod/ai-knowledge-base.json` : `cascadeGraph` vient de la carte des imports et contient tous les dépendants, quel que soit le contenu des blocs
+- `AGENTS.md` : nouvelle section « Before modifying a file » avec les règles communes et la commande de validation ; listes de fichiers par agent ramenées à 5
+- README : section « Measured cost » avec les résultats du benchmark (aucune baisse de coût sur un projet de 145 fichiers, quelle que soit la variante) ; pour Claude Code, coût mesuré de l'import `@AGENTS.md` (environ 2 000 tokens par session) et d'une ligne de renvoi (lectures supplémentaires)
+
+### Added
+- `aidoc-kit fix blocks [--dry]` : réécrit les blocs des versions précédentes au format compact. Les blocs modifiés à la main (balises `@ai-never`, `@ai-pattern`… ou consignes personnalisées) ne sont pas touchés ; les contextes enrichis par `enrich` sont conservés
+- `bench/` : benchmark reproductible (projet Next.js généré, 6 tâches vérifiées automatiquement, configurations avec et sans aidoc-kit, mesure par `claude -p`)
+
+### Fixed
+- Détection de `'use client'` / `'use server'` derrière un commentaire de bloc : le bloc `@ai-*` inséré au-dessus de la directive la masquait, et `index` classait ces fichiers en `universal`
+
+---
+
 ## [1.5.0] — 2026-10-29
 
 ### Added

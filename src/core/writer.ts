@@ -5,10 +5,15 @@ import { readEnrichedGraph, GRAPH_FILENAME } from '../graph/serializer'
 
 // ─── Knowledge base ────────────────────────────────────────────────────────
 
-export function writeKnowledgeBase(result: ScanResult, projectRoot: string): void {
+/**
+ * `cascadeGraph` is the full dependents map from the import scan. Blocks only
+ * list the first dependents, so they are a fallback when it is not given.
+ */
+export function writeKnowledgeBase(result: ScanResult, projectRoot: string, cascadeGraph?: Record<string, string[]>): void {
   const outDir = join(projectRoot, '.codemod')
   mkdirSync(outDir, { recursive: true })
   const kb = buildKnowledgeBase(result.docs)
+  if (cascadeGraph) kb.cascadeGraph = cascadeGraph
   writeFileSync(join(outDir, 'ai-knowledge-base.json'), JSON.stringify(kb, null, 2), 'utf-8')
 }
 
@@ -112,12 +117,26 @@ export function buildAgentsMdBlock(result: ScanResult, projectRoot: string): str
   }
 
   if (usesDocBlocks) {
-    lines.push('## Agents and their domains', '')
+    const commands = Object.keys(kb.validationCommands)
+    lines.push(
+      '## Before modifying a file',
+      '',
+      'Each source file starts with an `@ai-*` block: its agent, what it exports and the files',
+      'that depend on it (`@ai-cascade`, most depended-on first, capped). These rules apply to all files:',
+      '',
+      '1. Check the files listed in `@ai-cascade` before changing what the file exports.',
+      `2. After modifying, run the \`@ai-validate\` command${commands.length === 1 ? ` (\`${commands[0]}\`)` : ''}, or ask the developer to.`,
+      '3. A block lists a few dependents only: the full list is in `.codemod/ai-knowledge-base.json`',
+      '   (`cascadeGraph`), `aidoc-graph.json` or the `context_for_edit` MCP tool.',
+      '',
+      '## Agents and their domains',
+      '',
+    )
     for (const [agent, info] of Object.entries(kb.agents)) {
       lines.push(`### ${agent}`, '')
       lines.push(`**Files:** ${info.owns.length}`)
-      info.owns.slice(0, 10).forEach(f => lines.push(`- \`${f}\``))
-      if (info.owns.length > 10) lines.push(`- *(+ ${info.owns.length - 10} more)*`)
+      info.owns.slice(0, 5).forEach(f => lines.push(`- \`${f}\``))
+      if (info.owns.length > 5) lines.push(`- *(+ ${info.owns.length - 5} more)*`)
       if (info.consultedBy.length > 0) {
         lines.push('', `**Consulted by:** ${info.consultedBy.join(', ')}`)
       }

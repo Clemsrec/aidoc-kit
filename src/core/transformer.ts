@@ -1,6 +1,7 @@
 import * as ts from 'typescript'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
+import { detectDirective } from './directives'
 import type { Rule, AidocConfig } from '../types'
 
 // ─── Writer — generate @ai-* block for undocumented files ─────────────────
@@ -26,51 +27,37 @@ export function generateAiDocBlock(
   const validateCmd = config.validate ?? 'npm run typecheck'
 
   const exportList = exports.length > 0 ? exports.join(', ') : basename(filePath)
-  const importedIn = cascadeDeps.length > 0
-    ? `Imported by: ${cascadeDeps.join(', ')}`
-    : ''
   // IMPORTANT: generated @ai-* blocks must be 100% ASCII.
   // No Unicode characters — SWC, Turbopack, Babel, and esbuild all have
   // different tolerance levels. Plain dash is the only universally safe choice.
-  const cascadeLines = cascadeDeps.length > 0
-    ? cascadeDeps.map(f => ` * - ${f}`).join('\n')
-    : ' * (none detected)'
+  //
+  // Every line here is re-read by agents on each file read, so the block keeps
+  // only what is specific to this file. Rules common to all files are written
+  // once in AGENTS.md; the full dependents list lives in the knowledge base,
+  // aidoc-graph.json and the MCP server.
+  const lines = [` * @ai-agent ${agent}`]
+  // @ai-runtime is omitted when it is universal or visible as a directive.
+  if (runtime !== 'UNIVERSEL' && !detectDirective(source)) lines.push(` * @ai-runtime ${runtime}`)
+  lines.push(` * @ai-context [GENERATED] This file exports: ${exportList}`)
+  if (cascadeDeps.length > 0) lines.push(...cascadeLines(cascadeDeps))
+  lines.push(` * @ai-validate ${validateCmd}`)
+  return ['/**', ...lines, ' */'].join('\n')
+}
 
-  // @ai-runtime is omitted when deductible from an explicit directive.
-  // 'use client' / 'use server' are visible on the first line — no need to repeat.
-  const head = source.slice(0, 300)
-  const runtimeFromDirective =
-    /^\s*(?:\/\/[^\n]*\n\s*)*['"]use client['"]/.test(head) ||
-    /^\s*(?:\/\/[^\n]*\n\s*)*['"]use server['"]/.test(head)
-  const runtimeSection = runtimeFromDirective ? '' : `\n * @ai-runtime ${runtime}`
+/** Dependents shown in a block; callers pass them most depended-on first. */
+export const CASCADE_LIMIT = 5
 
-  // Criticality indicator based on number of dependents (ASCII only — no Unicode emojis)
-  const cascadeCount = cascadeDeps.length
-  const criticalityNote = cascadeCount >= 20
-    ? `\n * [CRITICAL] ${cascadeCount} dependents. Any change affects the entire application. Discuss with developer before modifying.`
-    : cascadeCount >= 10
-      ? `\n * [HIGH-IMPACT] ${cascadeCount} dependents detected. Prefer small, isolated changes.`
-      : ''
-
-  return `/**
- * @ai-agent ${agent}
- * @ai-agent-hint If you are not the ${agent} specialist, consider switching to a specialized agent in Copilot Chat. Run \`npx aidoc-kit agents\` to generate agent instruction files.${runtimeSection}
- *
- * @ai-context
- * [GENERATED] This file exports: ${exportList}
- * ${importedIn}${criticalityNote}
- *
- * @ai-when-modifying
- * 1. Check cascade files below before modifying
- * 2. After modifying, ask the developer to run @ai-validate
- * 3. If you have no terminal access, report the command to run
- *
- * @ai-cascade
-${cascadeLines}
- *
- * @ai-validate
- * ${validateCmd}
- */`
+function cascadeLines(deps: string[]): string[] {
+  const count = deps.length
+  const level = count >= 20 ? '[CRITICAL] ' : count >= 10 ? '[HIGH-IMPACT] ' : ''
+  const header = count > CASCADE_LIMIT
+    ? ` * @ai-cascade ${level}${count} dependents, most depended-on first:`
+    : ` * @ai-cascade ${level}${count} dependent${count > 1 ? 's' : ''}:`
+  const shown = deps.slice(0, CASCADE_LIMIT).map(f => ` * - ${f}`)
+  const rest = count > CASCADE_LIMIT
+    ? [` * - ... ${count - CASCADE_LIMIT} more: see aidoc-graph.json or the context_for_edit MCP tool`]
+    : []
+  return [header, ...shown, ...rest]
 }
 
 // ─── Transformer — apply rules to a file ──────────────────────────────────
@@ -193,11 +180,9 @@ function inferAgent(
  * then heuristics (React hooks - CLIENT, firebase-admin imports - SERVER).
  */
 function detectRuntime(source: string): string {
-  // Only inspect the file head for the directives to avoid false positives inside strings
-  const head = source.slice(0, 300)
-
-  if (/^\s*(?:\/\/[^\n]*\n\s*)*['"]use client['"]/.test(head)) return 'CLIENT UNIQUEMENT'
-  if (/^\s*(?:\/\/[^\n]*\n\s*)*['"]use server['"]/.test(head)) return 'SERVER UNIQUEMENT'
+  const directive = detectDirective(source)
+  if (directive === 'client') return 'CLIENT UNIQUEMENT'
+  if (directive === 'server') return 'SERVER UNIQUEMENT'
 
   // Heuristics on full source
   if (/['"]firebase-admin['"]/.test(source)) return 'SERVER UNIQUEMENT'

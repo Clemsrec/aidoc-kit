@@ -74,8 +74,8 @@ need. If the chunk is missing, ask the developer to run `npx aidoc-kit chunk`.
 | Tag | What to do |
 |---|---|
 | `@ai-context` | Read it before the code: it says what the file does and exposes |
-| `@ai-when-modifying` | Follow these steps when editing the file |
-| `@ai-cascade` | Check each listed file after your change |
+| `@ai-when-modifying` | Follow these steps when editing the file (blocks from aidoc-kit 1.6 leave it out: the common rules are in `AGENTS.md`) |
+| `@ai-cascade` | Check each listed file after your change. Since 1.6 it lists the first 5 dependents only: get the full list from the graph or `context_for_edit` |
 | `@ai-validate` | Run this command after modifying the file and report the result |
 | `@ai-always` / `@ai-never` | Invariants and prohibitions: never break them silently |
 | `@ai-runtime` | Execution context (server only, client only, universal) |

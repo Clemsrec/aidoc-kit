@@ -20,6 +20,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { detectDirective } from '../core/directives'
 import type {
   CriticalityLevel,
   EnrichedFile,
@@ -46,13 +47,9 @@ const APP_ENTRY_PATTERN =
  * @ai-runtime detection in core/transformer.
  */
 export function inferRole(relPath: string, source: string): { role: FileRole; reason: string } {
-  const head = source.slice(0, 300)
-  if (/^\s*(?:\/\/[^\n]*\n\s*)*['"]use client['"]/.test(head)) {
-    return { role: 'client', reason: `'use client' directive` }
-  }
-  if (/^\s*(?:\/\/[^\n]*\n\s*)*['"]use server['"]/.test(head)) {
-    return { role: 'server', reason: `'use server' directive` }
-  }
+  const directive = detectDirective(source)
+  if (directive === 'client') return { role: 'client', reason: `'use client' directive` }
+  if (directive === 'server') return { role: 'server', reason: `'use server' directive` }
 
   const normalized = relPath.replace(/\\/g, '/')
   if (/\.server\.[jt]sx?$/.test(normalized)) return { role: 'server', reason: '.server file suffix' }
