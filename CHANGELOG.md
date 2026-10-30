@@ -2,6 +2,21 @@
 
 All notable changes to aidoc-kit are documented in this file.
 
+## [1.7.0] — 2026-10-30
+
+### Added
+- Outils MCP `find_symbol` (définition, signature, appelants et appelés d'une fonction, d'un composant ou d'un type, avec numéros de ligne) et `trace` (arbre d'appels vers l'aval ou l'amont), lus dans l'index CodeGraph (`.codegraph/`). Les fichiers générés et de test sont classés après le code
+- `aidoc-kit hook read-guard` : hook PreToolUse pour Claude Code qui répond à la lecture complète d'un fichier source de 400 lignes ou plus par sa structure (expérimental)
+- `bench/run.mjs` et `bench/analyze.mjs` acceptent un fichier de tâches (`--tasks-file`) et des configurations de départ (`conditions.json`) ; les configurations alternent pour neutraliser l'effet du cache de prompt
+
+### Changed
+- `aidoc-kit mcp` n'expose plus que 4 outils par défaut (`find_symbol`, `trace`, `context_for_edit`, `read_chunk`), avec des descriptions plus courtes ; `--all-tools` rend les autres
+
+### Mesuré
+- Sur une application Next.js en production de 872 fichiers (6 tâches réelles, 18 sessions par configuration), aucune configuration ne réduit le coût d'une session Claude Code : +1 % (serveur 1.6), +10 % (`find_symbol`/`trace` et une ligne dans CLAUDE.md), +4 % (avec le hook). Le README le dit
+
+---
+
 ## [1.6.0] — 2026-10-30
 
 Suite au benchmark de la 1.5.0 : sur un projet Next.js de 145 fichiers, les blocs `@ai-*` faisaient plus que doubler le volume du code et rendaient les sessions Claude Code plus chères, sans gain de réussite.

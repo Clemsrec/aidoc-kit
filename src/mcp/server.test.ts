@@ -39,8 +39,8 @@ test('mcp server: initialize, tools/list and tools/call over stdio', async () =>
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } }),
     JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
-    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'graph_status', arguments: {} } }),
-    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'file_info', arguments: { path: '../x' } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'find_symbol', arguments: { name: 'a' } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'read_chunk', arguments: { path: '../x' } } }),
     JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'nope' }),
     '{not json',
     JSON.stringify({ jsonrpc: '2.0', id: 6, method: 'ping' }),
@@ -56,7 +56,7 @@ test('mcp server: initialize, tools/list and tools/call over stdio', async () =>
 
   const status = byId.get(3)?.result as { content: { text: string }[]; isError: boolean }
   assert.equal(status.isError, false)
-  assert.match(status.content[0].text, /not found/)
+  assert.match(status.content[0].text, /No CodeGraph index/)
 
   const refused = byId.get(4)?.result as { content: { text: string }[]; isError: boolean }
   assert.equal(refused.isError, true)

@@ -5,6 +5,7 @@ import { chunkFile, renderChunk } from '../core/chunker'
 import { readEnrichedGraph, GRAPH_FILENAME } from '../graph/serializer'
 import { getDependents, getDependencies, getCriticalFiles } from '../graph/query'
 import type { EnrichedFile, EnrichedGraph } from '../graph/types'
+import { findSymbol, traceSymbol } from './symbols'
 
 // Read-only tools exposed by `aidoc-kit mcp`. Every function returns Markdown
 // text for the agent; nothing here writes files or runs commands.
@@ -45,12 +46,42 @@ const PATH_PROPERTY = {
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
+    name: 'find_symbol',
+    description:
+      'Find a function, component, constant or type by name (exact or partial): definition with signature and ' +
+      'location, who uses it and what it uses, with line numbers. Faster than Grep + Read to locate code.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Symbol name or part of it, e.g. getAppSession or commission' },
+        file: { type: 'string', description: 'Optional: only symbols defined in this file' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'trace',
+    description:
+      'Follow a flow across files in one call: the tree of what a symbol calls (callees) or what leads to it ' +
+      '(callers), with call sites. Use it to understand a feature end to end before reading code.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Exact symbol name' },
+        direction: { type: 'string', enum: ['callees', 'callers'], description: 'Default: callees' },
+        depth: { type: 'integer', minimum: 1, maximum: 5, description: 'Default: 3' },
+        file: { type: 'string', description: 'Optional: file defining the symbol, when the name is ambiguous' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'context_for_edit',
     description:
-      'Everything to know before modifying a file, in one call: role and criticality, @ai-* rules, ' +
-      'dependents ranked by criticality, places that name the file as text (configs, JSON, scripts — ' +
-      'invisible to the import graph), large-file summary and the validation command. ' +
-      'Call this before editing any file.',
+      'Before editing a file: its role, criticality, dependents, places that name it as text (configs, JSON, ' +
+      'registries) and the validation command.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -109,9 +140,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'read_chunk',
-    description:
-      'Structured summary of a large file (exports, imports, structure, functions, importers). ' +
-      'Read it instead of the full source, then open only the lines you need.',
+    description: 'Summary of a large file (exports, functions with line ranges): read it, then only the lines you need.',
     inputSchema: {
       type: 'object',
       properties: { path: PATH_PROPERTY },
@@ -427,7 +456,34 @@ function graphStatus(projectRoot: string, args: ToolArgs): string {
   ].join('\n')
 }
 
+function requireName(args: ToolArgs): string {
+  const value = args.name
+  if (typeof value !== 'string' || value.trim() === '') throw new ToolInputError('"name" must be a non-empty string')
+  if (value.length > 200) throw new ToolInputError('"name" is longer than 200 characters')
+  return value.trim()
+}
+
+function optionalFile(projectRoot: string, args: ToolArgs): string | undefined {
+  return args.file === undefined ? undefined : resolveProjectPath(projectRoot, requirePathArg({ path: args.file })).rel
+}
+
+function findSymbolTool(projectRoot: string, args: ToolArgs): string {
+  checkKeys(args, ['name', 'file'])
+  return findSymbol(projectRoot, requireName(args), optionalFile(projectRoot, args))
+}
+
+function traceTool(projectRoot: string, args: ToolArgs): string {
+  checkKeys(args, ['name', 'direction', 'depth', 'file'])
+  const direction = args.direction ?? 'callees'
+  if (direction !== 'callees' && direction !== 'callers') throw new ToolInputError('"direction" must be callees or callers')
+  const depth = args.depth ?? 3
+  if (typeof depth !== 'number' || !Number.isInteger(depth) || depth < 1 || depth > 5) throw new ToolInputError('"depth" must be an integer between 1 and 5')
+  return traceSymbol(projectRoot, requireName(args), direction, depth, optionalFile(projectRoot, args))
+}
+
 const HANDLERS: Record<string, (projectRoot: string, args: ToolArgs) => string> = {
+  find_symbol: findSymbolTool,
+  trace: traceTool,
   context_for_edit: contextForEdit,
   file_info: fileInfo,
   dependents: (root, args) => neighbours(root, args, 'dependents'),
@@ -446,4 +502,11 @@ export function callTool(projectRoot: string, name: string, args: ToolArgs): str
   const handler = HANDLERS[name]
   if (!handler) throw new ToolInputError(`Unknown tool: ${name}`)
   return clip(handler(projectRoot, args), MAX_RESPONSE_CHARS)
+}
+
+/** Tools exposed by default; `aidoc-kit mcp --all-tools` adds the others. */
+export const DEFAULT_TOOLS = ['find_symbol', 'trace', 'context_for_edit', 'read_chunk']
+
+export function toolDefinitions(allTools: boolean): ToolDefinition[] {
+  return allTools ? TOOL_DEFINITIONS : TOOL_DEFINITIONS.filter(t => DEFAULT_TOOLS.includes(t.name))
 }

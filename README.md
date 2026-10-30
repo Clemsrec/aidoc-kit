@@ -98,17 +98,18 @@ See [EXAMPLES.md](EXAMPLES.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 ## MCP server
 
 `npx aidoc-kit mcp` starts a read-only [MCP](https://modelcontextprotocol.io) server on
-stdio. Agents call tools instead of reading files or running one-liners: one call to
-`context_for_edit` replaces a handful of file reads before an edit.
+stdio. Four tools are exposed by default:
 
 | Tool | Returns |
 |------|---------|
-| `context_for_edit` | Role, criticality, `@ai-*` rules, dependents ranked by criticality, places that name the file as text (configs, JSON, scripts), large-file summary and validation command, bounded by a token budget (`maxTokens`, default 4000) |
-| `file_info` | Graph entry and `@ai-*` block of one file |
-| `dependents` / `dependencies` | Linked files, most critical first |
-| `critical_files` | Files at or above a criticality level |
+| `find_symbol` | A function, component, constant or type found by exact or partial name: signature, location, who uses it and what it uses, with line numbers (and the code, for a single match) |
+| `trace` | The call tree around a symbol, towards what it calls or what leads to it, with call sites: a feature followed across files in one call |
+| `context_for_edit` | Before editing a file: role, criticality, dependents, places that name it as text (configs, JSON, registries), validation command, bounded by a token budget (`maxTokens`, default 4000) |
 | `read_chunk` | Structured summary of a large file (from `.codemod/chunks/`, or computed on the fly when missing or older than the source) |
-| `graph_status` | Graph date, stats and number of source files modified since |
+
+`--all-tools` also exposes `file_info`, `dependents`, `dependencies`, `critical_files`
+and `graph_status`. `find_symbol` and `trace` read the CodeGraph index (`.codegraph/`,
+built by `npx aidoc-kit index`, Node.js >= 22.5).
 
 The textual-reference search covers the graph's blind spot: a JSON file or a script
 naming a path is not an import edge, but renaming the file breaks it.
@@ -136,6 +137,28 @@ Guarantees: no runtime dependency (the protocol is implemented on Node built-ins
 network, no file writes, no command execution (the `@ai-validate` command is returned,
 never run), paths confined to the project root (symlinks included), bounded responses.
 
+### Read guard (Claude Code hook)
+
+The read guard answers a whole-file `Read` of a source file of 400 lines or more with
+its structure (exports, functions with their line ranges), so the agent reads only the
+lines it needs. Reads with `offset`/`limit` go through untouched, and the agent can
+still read the whole file by asking for every line. Measured on a 872-file project, it
+does not lower the cost: fewer whole-file reads, but more round trips (see
+[Measured cost](#measured-cost)). It is experimental.
+
+```jsonc
+// .claude/settings.json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Read", "hooks": [ { "type": "command", "command": "npx aidoc-kit hook read-guard" } ] }
+    ]
+  }
+}
+```
+
+`--min-lines <n>` changes the threshold.
+
 ## Measured cost
 
 Does aidoc-kit make AI agents cheaper? On a 145-file Next.js project, **no**. `bench/`
@@ -150,8 +173,23 @@ runs Claude Code (Sonnet) on 6 verified tasks, 3 times each, with and without ai
 
 At this size a text search answers the agent's questions in one call: it never called
 the MCP server, and the context aidoc-kit adds (AGENTS.md, `@ai-*` blocks) costs more
-than it saves. Gains, if any, are expected on much larger codebases, which have not been
-measured yet. Re-run it on your machine:
+than it saves.
+
+The same protocol on a real production Next.js app (872 files, 97,000 lines of
+TypeScript, 6 real tasks, 18 sessions per setup) gives the same answer:
+
+| Setup | Cost per session vs. without aidoc-kit | Tasks passed |
+|-------|----------------------------------------|--------------|
+| MCP server 1.6 | +1 % | 78 % (vs. 83 %) |
+| `find_symbol` / `trace` + one line in CLAUDE.md | +10 % | 83 % |
+| Same + read guard hook | +4 % | 78 % |
+
+The agent does call `find_symbol` and `trace` when CLAUDE.md suggests it, then checks
+with Grep anyway. Claude Code already finds what it needs efficiently, and the fixed
+context of a session is cheap once it sits in the prompt cache: what costs is tool output
+and generated text, and aidoc-kit has not reduced either. **aidoc-kit does not lower
+the cost of Claude Code sessions.** Use it for what it gives an agent (dependents, text
+references, conventions), not to save tokens. Re-run the small benchmark on your machine:
 
 ```bash
 node bench/prepare.mjs /tmp/aidoc-bench
@@ -545,12 +583,16 @@ Commands:
           --path <dir>   Project root (default: .)
           --dry          Preview changes without writing
 
-  mcp     Start a read-only MCP server on stdio for AI agents
-          --path <dir>   Project root (default: .)
-
   fix arrows  Replace legacy arrow characters in @ai-* blocks (SWC compat)
   fix blocks  Rewrite blocks of aidoc-kit < 1.6 in the compact format
               --dry        Preview without writing
+
+  mcp     Start the read-only MCP server on stdio
+          --path <dir>   Project root (default: .)
+          --all-tools    Expose every tool, not only the default four
+
+  hook read-guard  Claude Code PreToolUse hook: large-file reads answered with their structure
+          --min-lines <n>  Threshold (default: 400)
 ```
 
 ## Reverse dependency graph

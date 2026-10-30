@@ -2,13 +2,18 @@
 // Runs every (task, condition, repetition) with `claude -p` in a fresh copy of
 // the matching template, then checks the result. One JSON file per run.
 // Usage: node bench/run.mjs <workDir> [--tasks a,b] [--conditions A,B,C] [--reps 3]
-//        [--concurrency 3] [--model claude-sonnet-5-5] [--budget 1]
+//        [--concurrency 3] [--model claude-sonnet-5-5] [--budget 1] [--tasks-file path]
+//
+// <workDir>/conditions.json, when present, maps each condition to its template
+// and MCP server: {"C": {"template": "C", "mcp": []}} (null for no server; the
+// array holds extra `aidoc-kit mcp` arguments). Without it: A plain, B files,
+// C files + MCP, as prepared by bench/prepare.mjs.
 
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TASKS } from './tasks.mjs'
+import { pathToFileURL } from 'node:url'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const [work, ...rest] = process.argv.slice(2)
@@ -21,8 +26,15 @@ const opt = (name, fallback) => {
   return i === -1 ? fallback : rest[i + 1]
 }
 
+const tasksFile = resolve(opt('tasks-file', join(dirname(fileURLToPath(import.meta.url)), 'tasks.mjs')))
+const { TASKS } = await import(pathToFileURL(tasksFile).href)
+const conditionsFile = join(work, 'conditions.json')
+const CONDITIONS = existsSync(conditionsFile)
+  ? JSON.parse(readFileSync(conditionsFile, 'utf-8'))
+  : { A: { template: 'A', mcp: null }, B: { template: 'B', mcp: null }, C: { template: 'B', mcp: [] } }
+
 const taskIds = opt('tasks', TASKS.map(t => t.id).join(',')).split(',')
-const conditions = opt('conditions', 'A,B,C').split(',')
+const conditions = opt('conditions', Object.keys(CONDITIONS).join(',')).split(',')
 const reps = Number(opt('reps', '3'))
 const concurrency = Number(opt('concurrency', '3'))
 const model = opt('model', 'claude-sonnet-5-5')
@@ -31,14 +43,14 @@ const budget = opt('budget', '1')
 const resultsDir = join(work, 'results')
 mkdirSync(resultsDir, { recursive: true })
 
-const mcpConfigs = {
-  none: join(work, 'mcp-none.json'),
-  aidoc: join(work, 'mcp-aidoc.json'),
+// One MCP config file per condition: no server, or aidoc-kit with its arguments.
+function mcpConfigFor(condition) {
+  const file = join(work, `mcp-${condition}.json`)
+  const extra = CONDITIONS[condition].mcp
+  const servers = extra === null ? {} : { 'aidoc-kit': { command: process.execPath, args: [join(repo, 'dist/cli.js'), 'mcp', ...extra] } }
+  writeFileSync(file, JSON.stringify({ mcpServers: servers }))
+  return file
 }
-writeFileSync(mcpConfigs.none, JSON.stringify({ mcpServers: {} }))
-writeFileSync(mcpConfigs.aidoc, JSON.stringify({
-  mcpServers: { 'aidoc-kit': { command: process.execPath, args: [join(repo, 'dist/cli.js'), 'mcp'] } },
-}))
 
 const ALLOWED = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'mcp__aidoc-kit']
 const DISALLOWED = ['Agent', 'Task', 'WebFetch', 'WebSearch']
@@ -85,12 +97,15 @@ function parseStream(stdout) {
   return { tools, final, mcpServers }
 }
 
+// Repetition-major order: conditions alternate, so none runs on a prompt cache
+// warmed by its own previous sessions more than the others.
+for (const c of conditions) if (!CONDITIONS[c]) throw new Error(`unknown condition ${c}`)
 const jobs = []
-for (const taskId of taskIds) {
-  const task = TASKS.find(t => t.id === taskId)
-  if (!task) throw new Error(`unknown task ${taskId}`)
-  for (const condition of conditions) {
-    for (let rep = 1; rep <= reps; rep++) jobs.push({ task, condition, rep })
+for (let rep = 1; rep <= reps; rep++) {
+  for (const taskId of taskIds) {
+    const task = TASKS.find(t => t.id === taskId)
+    if (!task) throw new Error(`unknown task ${taskId}`)
+    for (const condition of conditions) jobs.push({ task, condition, rep })
   }
 }
 
@@ -98,19 +113,19 @@ async function runJob({ task, condition, rep }) {
   const runId = `${task.id}__${condition}__${rep}`
   const outFile = join(resultsDir, `${runId}.json`)
   if (existsSync(outFile)) return `${runId} (cached)`
-  const template = join(work, 'templates', condition === 'A' ? 'A' : 'B')
+  const template = join(work, 'templates', CONDITIONS[condition].template)
   const dir = join(work, 'runs', runId)
   rmSync(dir, { recursive: true, force: true })
   cpSync(template, dir, { recursive: true, verbatimSymlinks: true })
 
   const started = Date.now()
-  const { code, stdout, stderr } = await runClaude(dir, task.prompt, condition === 'C' ? mcpConfigs.aidoc : mcpConfigs.none)
+  const { code, stdout, stderr } = await runClaude(dir, task.prompt, mcpConfigFor(condition))
   const wall = Date.now() - started
   const { tools, final, mcpServers } = parseStream(stdout)
   const answer = typeof final?.result === 'string' ? final.result : ''
   let check
   try {
-    check = task.check(dir, template, answer)
+    check = await task.check(dir, template, answer)
   } catch (err) {
     check = { pass: false, details: { checkError: String(err) } }
   }

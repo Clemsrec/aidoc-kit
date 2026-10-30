@@ -25,10 +25,10 @@ Check the project root, without reading large files in full:
 Read `AGENTS.md` first. Manual content outside its generated block is written by the
 developer and takes precedence over generated content.
 
-If the `aidoc-kit` MCP server is connected (tools `context_for_edit`, `file_info`,
-`dependents`, `dependencies`, `critical_files`, `read_chunk`, `graph_status`), use it:
-call `context_for_edit` before modifying any file and `read_chunk` instead of reading a
-large file in full. It applies sections 2 to 4 below in one call, and also lists places
+If the `aidoc-kit` MCP server is connected, use it: `find_symbol` to locate a function or
+component, `trace` to follow a flow across files, `context_for_edit` before modifying a
+file and `read_chunk` instead of reading a large file in full. One of these calls
+replaces several Grep and Read round trips. It applies sections 2 to 4 below in one call, and also lists places
 that name the file as text. Otherwise, follow sections 2 to 4 by hand. The developer
 can connect it with `claude mcp add aidoc-kit -- npx aidoc-kit mcp` (Claude Code) or an
 `mcp.json` entry running `npx aidoc-kit mcp`.

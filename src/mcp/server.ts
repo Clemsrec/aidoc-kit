@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
-import { TOOL_DEFINITIONS, ToolInputError, callTool, isKnownTool } from './tools'
+import { ToolInputError, callTool, isKnownTool, toolDefinitions } from './tools'
 
 // Minimal MCP server over stdio: newline-delimited JSON-RPC 2.0, tools only.
 // Implemented by hand to keep aidoc-kit free of runtime dependencies.
@@ -11,10 +11,8 @@ export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03
 const MAX_MESSAGE_BYTES = 1024 * 1024
 
 const INSTRUCTIONS =
-  'aidoc-kit exposes the documented structure of this codebase. Call context_for_edit before ' +
-  'modifying a file, read_chunk instead of reading a large file in full, and critical_files to find ' +
-  'the files whose changes ripple furthest. All tools are read-only. Never run aidoc-kit commands ' +
-  'that write files yourself: suggest them to the developer.'
+  'aidoc-kit indexes this codebase. To locate code or follow a flow, call find_symbol and trace ' +
+  'before Grep: one call replaces several searches. All tools are read-only.'
 
 type JsonRpcId = string | number | null
 
@@ -52,11 +50,13 @@ export interface McpServerOptions {
   version: string
   input?: Readable
   output?: Writable
+  /** Expose every tool instead of the default four. */
+  allTools?: boolean
   /** Diagnostics only; never receives tool arguments or file contents. */
   log?: (message: string) => void
 }
 
-export function handleRequest(req: JsonRpcRequest, opts: Pick<McpServerOptions, 'projectRoot' | 'version'>): unknown {
+export function handleRequest(req: JsonRpcRequest, opts: Pick<McpServerOptions, 'projectRoot' | 'version' | 'allTools'>): unknown {
   const params = req.params === undefined ? {} : req.params
   if (!isRecord(params)) throw new RpcError(INVALID_PARAMS, 'params must be an object')
 
@@ -76,11 +76,13 @@ export function handleRequest(req: JsonRpcRequest, opts: Pick<McpServerOptions, 
     case 'ping':
       return {}
     case 'tools/list':
-      return { tools: TOOL_DEFINITIONS }
+      return { tools: toolDefinitions(opts.allTools ?? false) }
     case 'tools/call': {
       const { name } = params
       const args = params.arguments === undefined ? {} : params.arguments
-      if (typeof name !== 'string' || !isKnownTool(name)) throw new RpcError(INVALID_PARAMS, `Unknown tool: ${String(name)}`)
+      if (typeof name !== 'string' || !isKnownTool(name) || !toolDefinitions(opts.allTools ?? false).some(t => t.name === name)) {
+        throw new RpcError(INVALID_PARAMS, `Unknown tool: ${String(name)}`)
+      }
       if (!isRecord(args)) throw new RpcError(INVALID_PARAMS, 'arguments must be an object')
       try {
         return { content: [{ type: 'text', text: callTool(opts.projectRoot, name, args) }], isError: false }

@@ -41,6 +41,7 @@ import { getCriticalFiles } from './graph/query'
 import { diffEnrichedGraphs, isGraphDiffEmpty } from './graph/diff'
 import type { EnrichedGraph } from './graph/types'
 import { runMcpServer } from './mcp/server'
+import { readGuard, DEFAULT_MIN_LINES } from './hooks/read-guard'
 
 // ─── Arg helpers ───────────────────────────────────────────────────────────
 
@@ -721,6 +722,36 @@ function cmdFixBlocks(): void {
   }
 }
 
+// ─── hook ──────────────────────────────────────────────────────────────────
+
+/** Claude Code hooks: read the event on stdin, answer on stdout, never fail the tool call. */
+async function cmdHook(): Promise<void> {
+  const name = args[1]
+  if (name !== 'read-guard' || hasFlag('--help') || hasFlag('-h')) {
+    console.log(`
+Usage: aidoc-kit hook read-guard [--min-lines ${DEFAULT_MIN_LINES}]
+
+Claude Code PreToolUse hook for Read: a whole-file read of a source file of
+--min-lines lines or more is refused and answered with the file's structure,
+so the agent reads only the lines it needs. Reads with offset/limit pass.
+
+.claude/settings.json:
+  { "hooks": { "PreToolUse": [ { "matcher": "Read",
+      "hooks": [ { "type": "command", "command": "npx aidoc-kit hook read-guard" } ] } ] } }
+`)
+    return
+  }
+  const minLines = Number(getFlag('--min-lines') ?? DEFAULT_MIN_LINES)
+  let raw = ''
+  for await (const chunk of process.stdin) raw += chunk
+  try {
+    const decision = readGuard(JSON.parse(raw), Number.isFinite(minLines) && minLines > 0 ? minLines : DEFAULT_MIN_LINES)
+    if (decision) process.stdout.write(JSON.stringify(decision))
+  } catch {
+    // Malformed input: let the Read run as if the hook were not installed.
+  }
+}
+
 // ─── mcp ───────────────────────────────────────────────────────────────────
 
 async function cmdMcp(): Promise<void> {
@@ -732,6 +763,7 @@ Start a read-only MCP server on stdio exposing the code graph, @ai-* blocks and
 large-file summaries to AI agents (Claude Code, Cursor, VS Code, Windsurf...).
 
   --path <dir>   Project root (default: .)
+  --all-tools    Also expose file_info, dependents, dependencies, critical_files, graph_status
   -h, --help     Show this help
 
 Claude Code:  claude mcp add aidoc-kit -- npx aidoc-kit mcp
@@ -752,7 +784,7 @@ Claude Code:  claude mcp add aidoc-kit -- npx aidoc-kit mcp
   }
   const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')) as { version: string }
   process.stderr.write(`[aidoc-kit mcp] v${pkg.version} serving ${projectRoot}\n`)
-  await runMcpServer({ projectRoot, version: pkg.version })
+  await runMcpServer({ projectRoot, version: pkg.version, allTools: hasFlag('--all-tools') })
 }
 
 // ─── help ──────────────────────────────────────────────────────────────────
@@ -794,6 +826,10 @@ Commands:
 
   mcp     Start a read-only MCP server on stdio for AI agents
           --path <dir>   Project root (default: .)
+          --all-tools    Expose every tool, not only the default four
+
+  hook    Claude Code hooks
+    read-guard  Answer whole-file reads of large source files with their structure
 
   models  List available models for the configured provider
 
@@ -882,6 +918,9 @@ Usage: aidoc-kit init [options]
       console.error(err)
       process.exit(1)
     })
+    break
+  case 'hook':
+    cmdHook().catch(() => process.exit(0))
     break
   case 'mcp':
     cmdMcp().catch((err: unknown) => {

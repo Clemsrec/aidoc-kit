@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 // Aggregates bench/run.mjs results into summary.json (per task and condition).
-// Usage: node bench/analyze.mjs <workDir>
+// Usage: node bench/analyze.mjs <workDir> [--tasks-file path]
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { TASKS } from './tasks.mjs'
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const work = process.argv[2]
 if (!work) {
   console.error('Usage: node bench/analyze.mjs <workDir>')
   process.exit(1)
 }
+
+const tasksFlag = process.argv.indexOf('--tasks-file')
+const tasksFile = resolve(tasksFlag === -1 ? join(dirname(fileURLToPath(import.meta.url)), 'tasks.mjs') : process.argv[tasksFlag + 1])
+const { TASKS } = await import(pathToFileURL(tasksFile).href)
 
 const runs = readdirSync(join(work, 'results'))
   .filter(f => f.endsWith('.json'))
@@ -40,11 +44,11 @@ function stats(group) {
     durationS: mean(pick(r => r.durationMs / 1000)),
     toolCalls: mean(pick(toolCalls)),
     mcpCalls: mean(pick(mcpCalls)),
-    mcpConnected: group.every(r => r.condition !== 'C' || r.mcpServers?.some(s => s.name === 'aidoc-kit' && s.status === 'connected')),
+    mcpServers: [...new Set(group.flatMap(r => (r.mcpServers ?? []).map(s => `${s.name}:${s.status}`)))],
   }
 }
 
-const conditions = ['A', 'B', 'C']
+const conditions = [...new Set(runs.map(r => r.condition))].sort()
 const perTask = TASKS.map(t => ({
   id: t.id,
   title: t.title,
@@ -66,10 +70,9 @@ function srcBytes(dir) {
   walk(dir)
   return total
 }
-const sourceSize = {
-  A: srcBytes(join(work, 'templates/A/src')),
-  B: srcBytes(join(work, 'templates/B/src')),
-}
+const sourceSize = Object.fromEntries(
+  readdirSync(join(work, 'templates')).filter(t => existsSync(join(work, 'templates', t, 'src'))).map(t => [t, srcBytes(join(work, 'templates', t, 'src'))]),
+)
 
 const toolUsage = Object.fromEntries(conditions.map(c => {
   const totals = {}
@@ -91,7 +94,7 @@ writeFileSync(join(work, 'summary.json'), JSON.stringify(summary, null, 2))
 
 const pct = (x, base) => (base ? `${(((x - base) / base) * 100).toFixed(0)}%` : 'n/a')
 console.log(`${runs.length} runs, total $${summary.totalCostUsd.toFixed(2)}, model ${summary.model}`)
-console.log(`source size A ${sourceSize.A} B ${sourceSize.B} (${pct(sourceSize.B, sourceSize.A)})`)
+console.log(`source size ${Object.entries(sourceSize).map(([t, b]) => `${t} ${b}`).join(' ')}`)
 for (const c of conditions) {
   const o = overall[c]
   console.log(`${c}: success ${(o.successRate * 100).toFixed(0)}% cost $${o.costUsd.toFixed(4)} (${pct(o.costUsd, overall.A.costUsd)}) input ${o.inputTokens.toFixed(0)} uncached ${o.uncachedInputTokens.toFixed(0)} out ${o.outputTokens.toFixed(0)} turns ${o.turns.toFixed(1)} tools ${o.toolCalls.toFixed(1)} mcp ${o.mcpCalls.toFixed(1)} ${o.durationS.toFixed(0)}s`)
