@@ -188,8 +188,14 @@ The agent does call `find_symbol` and `trace` when CLAUDE.md suggests it, then c
 with Grep anyway. Claude Code already finds what it needs efficiently, and the fixed
 context of a session is cheap once it sits in the prompt cache: what costs is tool output
 and generated text, and aidoc-kit has not reduced either. **aidoc-kit does not lower
-the cost of Claude Code sessions.** Use it for what it gives an agent (dependents, text
-references, conventions), not to save tokens. Re-run the small benchmark on your machine:
+the cost of Claude Code sessions.**
+
+Nor did it prevent errors there: on 7 requests that each hide a trap the typechecker
+cannot see (redirect and stale references after a URL change, page registry, ownership
+check before reading data, rate limit and HTML escaping on a public form, tests to
+update), Claude Code handled every trap on its own, with and without aidoc-kit (21/21
+sessions each), at the same cost. It reads neighbouring files and follows their
+conventions. Re-run the small benchmark on your machine:
 
 ```bash
 node bench/prepare.mjs /tmp/aidoc-bench

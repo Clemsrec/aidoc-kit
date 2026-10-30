@@ -14,6 +14,7 @@ All notable changes to aidoc-kit are documented in this file.
 
 ### Mesuré
 - Sur une application Next.js en production de 872 fichiers (6 tâches réelles, 18 sessions par configuration), aucune configuration ne réduit le coût d'une session Claude Code : +1 % (serveur 1.6), +10 % (`find_symbol`/`trace` et une ligne dans CLAUDE.md), +4 % (avec le hook). Le README le dit
+- Fiabilité, sur la même application : 7 demandes contenant chacune un piège invisible pour tsc ; Claude Code les évite toutes, avec et sans aidoc-kit (21 sessions sur 21 dans chaque configuration), pour le même coût
 
 ---
 
